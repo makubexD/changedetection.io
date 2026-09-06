@@ -19,6 +19,8 @@ on:
 jobs:
   metadata:
     runs-on: ubuntu-latest
+    # Fork guard: upstream-only publishing job, skipped in forks.
+    if: github.repository == 'dgtlmoon/changedetection.io'
     steps:
     - name: Show metadata
       run: |
@@ -37,7 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     # If the testing workflow has a success, then we build to :latest
     # Or if we are in a tagged release scenario.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event.release.tag_name }} != ''
+    # Fork guard: upstream-only publishing job, skipped in forks.
+    if: github.repository == 'dgtlmoon/changedetection.io' && (${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event.release.tag_name }} != '')
     steps:
       - uses: actions/checkout@v7
       - name: Set up Python 3.11
