@@ -1,0 +1,41 @@
+# Quadlet unit for running changedetection.io under rootless Podman + systemd.
+# This is the native-Podman deployment path -- no compose binary required.
+#
+# Install (rootless, as your normal user -- do NOT use sudo):
+#   mkdir -p ~/.config/containers/systemd
+#   cp changedetection.container changedetection.volume ~/.config/containers/systemd/
+#   systemctl --user daemon-reload
+#   systemctl --user start changedetection
+#   systemctl --user status changedetection
+#   journalctl --user -u changedetection -f
+#
+# Survive logout (otherwise systemd stops your user session's units):
+#   loginctl enable-linger $USER
+
+[Unit]
+Description=changedetection.io - self-hosted website change monitor
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+Image=ghcr.io/dgtlmoon/changedetection.io:latest
+ContainerName=changedetection
+AutoUpdate=registry
+
+Volume=changedetection.volume:/datastore
+
+# >1024 so rootless binds it without extra capabilities.
+PublishPort=127.0.0.1:5000:5000
+
+Environment=BASE_URL=http://localhost:5000
+# Environment=LOGGER_LEVEL=DEBUG
+# Environment=FETCH_WORKERS=10
+# Environment=PLAYWRIGHT_DRIVER_URL=ws://browser-sockpuppet-chrome:3000
+
+[Service]
+Restart=always
+# First run pulls the image, which can take a few minutes on a slow link.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

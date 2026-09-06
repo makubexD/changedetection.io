@@ -1,0 +1,31 @@
+# Pod manifest for `podman kube play`. Also valid as a plain Kubernetes manifest.
+#
+#   podman kube play contrib/podman/changedetection-kube.yaml
+#   podman kube down contrib/podman/changedetection-kube.yaml
+#
+# Note: `podman kube down` removes the pod but keeps the PVC-backed volume,
+# so your watches survive a restart.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: changedetection
+  labels:
+    app: changedetection
+spec:
+  restartPolicy: Always
+  containers:
+    - name: changedetection
+      image: ghcr.io/dgtlmoon/changedetection.io:latest
+      ports:
+        - containerPort: 5000
+          hostPort: 5000
+      env:
+        - name: BASE_URL
+          value: "http://localhost:5000"
+      volumeMounts:
+        - name: changedetection-data
+          mountPath: /datastore
+  volumes:
+    - name: changedetection-data
+      persistentVolumeClaim:
+        claimName: changedetection-data

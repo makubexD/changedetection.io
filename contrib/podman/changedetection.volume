@@ -1,0 +1,8 @@
+# Quadlet volume unit for changedetection.io's persistent /datastore.
+# Install alongside changedetection.container in ~/.config/containers/systemd/
+# Podman names the resulting volume "systemd-changedetection".
+[Unit]
+Description=changedetection.io datastore volume
+
+[Volume]
+VolumeName=changedetection-data
