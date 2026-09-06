@@ -1,0 +1,58 @@
+# Verifies the root Dockerfile builds and runs under Podman/Buildah.
+# This is the authoritative check for contrib/podman/ when no local Podman
+# is available.
+name: Test Podman build
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - 'contrib/podman/**'
+      - '.github/workflows/test-podman-build.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  podman-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure podman is available
+        run: |
+          podman --version || {
+            sudo apt-get update
+            sudo apt-get install -y podman
+          }
+          podman --version
+
+      # Exercises the Dockerfile's RUN --mount=type=cache directives under
+      # Buildah, which is the main way a Podman build could diverge from Docker.
+      - name: Build image
+        run: podman build -t cdio:podman-test -f Dockerfile .
+
+      - name: Run container
+        run: |
+          podman run -d --name cdio \
+            -p 5000:5000 \
+            -v cdio-data:/datastore \
+            cdio:podman-test
+
+      - name: Wait for the app to answer on :5000
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:5000/; then
+              echo "changedetection.io responded after $((i*2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::App did not respond on :5000 within 120s"
+          podman logs cdio
+          exit 1
+
+      - name: Container logs on failure
+        if: failure()
+        run: podman logs cdio || true
