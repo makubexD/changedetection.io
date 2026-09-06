@@ -18,7 +18,7 @@ Wants=network-online.target
 After=network-online.target
 
 [Container]
-Image=ghcr.io/dgtlmoon/changedetection.io:latest
+Image=ghcr.io/makubexd/changedetection.io:main
 ContainerName=changedetection
 AutoUpdate=registry
 
