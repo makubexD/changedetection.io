@@ -15,7 +15,7 @@ spec:
   restartPolicy: Always
   containers:
     - name: changedetection
-      image: ghcr.io/dgtlmoon/changedetection.io:latest
+      image: ghcr.io/makubexd/changedetection.io:main
       ports:
         - containerPort: 5000
           hostPort: 5000

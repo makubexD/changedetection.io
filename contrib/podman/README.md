@@ -45,7 +45,7 @@ podman info      # must succeed before anything below will work
 Or pull the prebuilt image instead of building:
 
 ```powershell
-podman pull ghcr.io/dgtlmoon/changedetection.io:latest
+podman pull ghcr.io/makubexd/changedetection.io:main
 podman-compose -f contrib/podman/podman-compose.yml up -d
 ```
 
