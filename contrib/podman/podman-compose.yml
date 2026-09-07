@@ -17,8 +17,8 @@ services:
       dockerfile: Dockerfile
     # Pulled if you skip the build above. This fork's own image, built and
     # pushed by .github/workflows/maku-container-build.yml on every push to
-    # main. GHCR lowercases the namespace, hence makubexd rather than makubexD.
-    image: ghcr.io/makubexd/changedetection.io:main
+    # maku-release. GHCR lowercases the namespace, hence makubexd rather than makubexD.
+    image: ghcr.io/makubexd/changedetection.io:stable
     # Upstream's image instead:
     # image: ghcr.io/dgtlmoon/changedetection.io:latest
     container_name: changedetection
