@@ -78,7 +78,7 @@ loginctl enable-linger "$USER"
 ```
 
 `AutoUpdate=registry` is set, so `podman auto-update` pulls and restarts on a
-new `:main` tag.
+new `:latest` tag.
 
 ## Rootless gotchas, and why the files look the way they do
 
