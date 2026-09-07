@@ -45,7 +45,7 @@ podman info      # must succeed before anything below will work
 Or pull the prebuilt image instead of building:
 
 ```powershell
-podman pull ghcr.io/makubexd/changedetection.io:main
+podman pull ghcr.io/makubexd/changedetection.io:stable
 podman-compose -f contrib/podman/podman-compose.yml up -d
 ```
 
@@ -78,7 +78,7 @@ loginctl enable-linger "$USER"
 ```
 
 `AutoUpdate=registry` is set, so `podman auto-update` pulls and restarts on a
-new `:latest` tag.
+new `:stable` tag.
 
 ## Rootless gotchas, and why the files look the way they do
 

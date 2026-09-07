@@ -15,7 +15,7 @@ spec:
   restartPolicy: Always
   containers:
     - name: changedetection
-      image: ghcr.io/makubexd/changedetection.io:main
+      image: ghcr.io/makubexd/changedetection.io:stable
       ports:
         - containerPort: 5000
           hostPort: 5000
