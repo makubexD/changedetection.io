@@ -14,6 +14,8 @@ one that matters if you cannot install or run Docker.
 | `changedetection.container` / `changedetection.volume` | Quadlet systemd units — the native Podman deployment |
 | `changedetection-kube.yaml` | Manifest for `podman kube play` (and real Kubernetes) |
 | `build.ps1` / `run.ps1` / `logs.ps1` | Windows one-liners |
+| `test.ps1` | Automated smoke test: build, run, check `:5000`, check persistence |
+| [`TESTING.md`](TESTING.md) | **Step-by-step test procedure and full command reference** |
 
 ## Windows: Podman Desktop + WSL2
 
@@ -40,7 +42,12 @@ podman info      # must succeed before anything below will work
 .\contrib\podman\build.ps1        # build the image from this repo
 .\contrib\podman\run.ps1          # run it, http://localhost:5000
 .\contrib\podman\logs.ps1         # follow the logs
+.\contrib\podman\test.ps1         # smoke test: build, run, verify, tear down
 ```
+
+To check the whole setup rather than just start it, follow
+[TESTING.md](TESTING.md) — it covers every deployment path, what each step
+should print, and what to do when one of them does not.
 
 Or pull the prebuilt image instead of building:
 
@@ -104,7 +111,7 @@ non-interactive shell. Every image here is written as
 `ghcr.io/...` or `docker.io/...`.
 
 **`--mount=type=cache`.** The root `Dockerfile` uses BuildKit cache mounts in
-four places. Buildah supports them, so `podman build` works unmodified. On an
+three places. Buildah supports them, so `podman build` works unmodified. On an
 older Buildah that mishandles them, build with `.\build.ps1 -NoCache`.
 
 **`podman-compose` vs `podman compose`.** These are different programs:
