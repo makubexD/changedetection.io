@@ -10,7 +10,7 @@ name: Build and push container (maku)
 on:
   push:
     branches:
-      - main
+      - maku-release
     tags:
       - 'maku-v*'
   workflow_dispatch:
@@ -50,6 +50,8 @@ jobs:
             type=ref,event=branch
             type=sha,format=short
             type=match,pattern=maku-v(.*),group=1
+            # Fixed alias so deploy files never pin a branch-derived tag.
+            type=raw,value=stable,enable=${{ github.ref == 'refs/heads/maku-release' }}
           # Overrides the Dockerfile's LABELs so the package links to this
           # fork rather than to upstream.
           labels: |
