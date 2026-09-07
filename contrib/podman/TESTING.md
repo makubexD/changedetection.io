@@ -342,3 +342,49 @@ running it cannot disturb or delete a real deployment's watches.
 It prints `PASS` / `FAIL` per stage and a summary line. On failure it dumps the
 container logs before exiting, so the output is enough to find the matching row
 in the troubleshooting table above.
+
+---
+
+## Testing this fork's published image
+
+Everything above builds from source. To test what CI actually publishes instead,
+skip the build and point at the image.
+
+In step 3, clone this fork rather than upstream:
+
+```powershell
+git clone https://github.com/makubexD/changedetection.io.git
+cd changedetection.io
+git checkout maku-release
+```
+
+Then, in place of steps 4 and 5:
+
+```powershell
+podman pull ghcr.io/makubexd/changedetection.io:stable
+.\contrib\podman\test.ps1 -Image ghcr.io/makubexd/changedetection.io:stable
+```
+
+Steps 6 through 9 are unchanged — the deploy files
+(`podman-compose.yml`, `changedetection.container`, `changedetection-kube.yaml`)
+already point at `:stable`, so `podman-compose up -d` and `podman kube play` use
+the published image with no edits.
+
+Two things to know about that tag:
+
+- **`:stable` is a fixed alias**, republished by
+  `.github/workflows/maku-container-build.yml` on every push to `maku-release`.
+  Deploy files pin it precisely so that renaming a branch cannot break them.
+  `:sha-<short>` is also published if you need to pin an exact build.
+- **GHCR lowercases namespaces**, so the account `makubexD` becomes `makubexd`
+  in the image reference. `ghcr.io/makubexD/...` will not resolve.
+
+To confirm you pulled the build you expected:
+
+```powershell
+podman image inspect ghcr.io/makubexd/changedetection.io:stable `
+  --format '{{index .Labels "org.opencontainers.image.revision"}}'
+```
+
+That prints the commit SHA the image was built from; it should match
+`git rev-parse maku-release`.
