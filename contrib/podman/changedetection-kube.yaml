@@ -5,6 +5,12 @@
 #
 # Note: `podman kube down` removes the pod but keeps the PVC-backed volume,
 # so your watches survive a restart.
+#
+# The browser container is commented out. Uncomment it AND the
+# PLAYWRIGHT_DRIVER_URL env var below to enable JS rendering, Browser Steps and
+# the Visual Selector. Both containers live in the SAME POD and therefore share a
+# network namespace, so the app reaches Chrome on localhost -- not by hostname as
+# it would on podman-compose.yml.
 apiVersion: v1
 kind: Pod
 metadata:
@@ -22,10 +28,46 @@ spec:
       env:
         - name: BASE_URL
           value: "http://localhost:5000"
+        # Uncomment together with the browser container below. Setting this also
+        # makes the Browser Steps / Visual Selector UI appear, so do not set it
+        # while the browser is absent.
+        # - name: PLAYWRIGHT_DRIVER_URL
+        #   value: "ws://localhost:3000"
       volumeMounts:
         - name: changedetection-data
           mountPath: /datastore
+
+    # - name: browser-sockpuppet-chrome
+    #   image: docker.io/dgtlmoon/sockpuppetbrowser:latest
+    #   securityContext:
+    #     capabilities:
+    #       add:
+    #         # Chrome's sandbox wants this inside a container.
+    #         - SYS_ADMIN
+    #   env:
+    #     - name: SCREEN_WIDTH
+    #       value: "1920"
+    #     - name: SCREEN_HEIGHT
+    #       value: "1024"
+    #     - name: SCREEN_DEPTH
+    #       value: "16"
+    #     - name: MAX_CONCURRENT_CHROME_PROCESSES
+    #       value: "10"
+    #   volumeMounts:
+    #     # The manifest equivalent of shm_size / --shm-size=2g. Without it
+    #     # /dev/shm is 64MB and Chrome dies with "Target closed" and renderer
+    #     # failures well before that is genuinely exhausted.
+    #     - name: dshm
+    #       mountPath: /dev/shm
+    #   # Port 3000 is deliberately not exposed on the host; the app reaches it
+    #   # on localhost inside the pod.
+
   volumes:
     - name: changedetection-data
       persistentVolumeClaim:
         claimName: changedetection-data
+    # Uncomment together with the browser container above.
+    # - name: dshm
+    #   emptyDir:
+    #     medium: Memory
+    #     sizeLimit: 2Gi

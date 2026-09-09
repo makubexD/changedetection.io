@@ -186,6 +186,61 @@ Clean up the marker:
 podman exec changedetection rm /datastore/.smoketest
 ```
 
+## 7b. With a real Chrome browser (optional)
+
+Skip this if you only fetch plain HTML. Do it if you want JS-rendered pages,
+Browser Steps or the Visual Selector — see [PRICE-TRACKING.md](PRICE-TRACKING.md).
+
+```powershell
+.\contrib\podman\run.ps1 -WithBrowser
+```
+
+Then verify, in this order — each one rules out a different failure:
+
+```powershell
+# a. both containers are up, in one pod
+podman ps --pod
+
+# b. the app still serves
+curl.exe -s -o NUL -w "%{http_code}" http://localhost:5000/
+
+# c. the app can actually reach Chrome (this is the one that matters)
+podman exec changedetection python -c "import socket; socket.create_connection(('localhost',3000),5); print('browser reachable')"
+
+# d. Chrome is not crash-looping
+.\contrib\podman\logs.ps1 -Browser
+```
+
+| Check | Expect |
+| --- | --- |
+| a | `changedetection` and `browser-sockpuppet-chrome`, both `Up`, same pod |
+| b | `200` |
+| c | `browser reachable` |
+| d | startup lines, no repeated renderer crash |
+
+**Then the check that actually proves it end to end:** open a watch → **Edit**.
+A **Browser Steps** tab and the **Visual Selector** must now be present. They are
+hidden whenever the app has no reachable browser, so seeing them means the wiring
+is right — (c) alone only proves the port is open.
+
+`test.ps1 -WithBrowser` automates a through c:
+
+```powershell
+.\contrib\podman\test.ps1 -WithBrowser
+```
+
+**The address differs by topology and the two are not interchangeable** — a pod
+shares a network namespace so containers reach each other on `localhost`, while
+separate containers on a network resolve each other by name:
+
+| Path | `PLAYWRIGHT_DRIVER_URL` |
+| --- | --- |
+| `run.ps1 -WithBrowser`, `podman kube play` | `ws://localhost:3000` |
+| `podman-compose`, Quadlet | `ws://browser-sockpuppet-chrome:3000` |
+
+Getting this wrong looks exactly like a broken browser: the container is up and
+healthy, and the app silently cannot talk to it.
+
 ## 8. The other two deployment paths
 
 `run.ps1` is the quickest path. These are the two you would actually deploy
@@ -219,6 +274,18 @@ To build through compose rather than pulling:
 podman-compose -f contrib/podman/podman-compose.yml build
 ```
 
+With Chrome — the profile starts the browser, the env var tells the app where it
+is, and **both are required**. Needs `podman-compose >= 1.0.4` for `--profile`:
+
+```powershell
+$env:PLAYWRIGHT_DRIVER_URL = "ws://browser-sockpuppet-chrome:3000"
+podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d
+podman ps    # expect changedetection AND browser-sockpuppet-chrome
+```
+
+Here the containers are on a shared network rather than in a pod, so the address
+is the **hostname**, not `localhost`.
+
 ### 8b. podman kube play
 
 ```powershell
@@ -234,6 +301,11 @@ podman kube down contrib/podman/changedetection-kube.yaml
 | `curl` | `200` |
 | `kube down` | pod removed, PVC-backed volume kept |
 
+For Chrome, uncomment the `browser-sockpuppet-chrome` container, the `dshm`
+volume and the `PLAYWRIGHT_DRIVER_URL` env var in the manifest — all three, or
+it will not work. Both containers share the pod, so the address is
+`ws://localhost:3000`.
+
 ### 8c. Quadlet / systemd — Linux only
 
 Not runnable on Windows or macOS; there is no user systemd in the Podman VM.
@@ -241,7 +313,12 @@ Not runnable on Windows or macOS; there is no user systemd in the Podman VM.
 ```bash
 mkdir -p ~/.config/containers/systemd
 cp contrib/podman/changedetection.container contrib/podman/changedetection.volume \
-   ~/.config/containers/systemd/
+   contrib/podman/changedetection.network ~/.config/containers/systemd/
+
+# optional: Chrome. Also uncomment PLAYWRIGHT_DRIVER_URL in
+# changedetection.container, or the app will not know it exists.
+cp contrib/podman/sockpuppetbrowser.container ~/.config/containers/systemd/
+
 systemctl --user daemon-reload
 systemctl --user start changedetection
 systemctl --user status changedetection

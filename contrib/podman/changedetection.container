@@ -3,7 +3,8 @@
 #
 # Install (rootless, as your normal user -- do NOT use sudo):
 #   mkdir -p ~/.config/containers/systemd
-#   cp changedetection.container changedetection.volume ~/.config/containers/systemd/
+#   cp changedetection.container changedetection.volume changedetection.network \
+#      ~/.config/containers/systemd/
 #   systemctl --user daemon-reload
 #   systemctl --user start changedetection
 #   systemctl --user status changedetection
@@ -24,12 +25,22 @@ AutoUpdate=registry
 
 Volume=changedetection.volume:/datastore
 
+Network=changedetection.network
+
 # >1024 so rootless binds it without extra capabilities.
 PublishPort=127.0.0.1:5000:5000
 
 Environment=BASE_URL=http://localhost:5000
 # Environment=LOGGER_LEVEL=DEBUG
 # Environment=FETCH_WORKERS=10
+
+# Uncomment to use Chrome, together with installing sockpuppetbrowser.container.
+# The hostname is the browser's ContainerName, resolved by DNS on
+# changedetection.network. (run.ps1 uses a pod instead, where the same thing is
+# reached at ws://localhost:3000 -- do not copy that value here.)
+#
+# Setting this also makes the Browser Steps and Visual Selector UI appear in the
+# app, so leave it commented out unless the browser is actually running.
 # Environment=PLAYWRIGHT_DRIVER_URL=ws://browser-sockpuppet-chrome:3000
 
 [Service]
