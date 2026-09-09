@@ -7,7 +7,20 @@
 #   podman-compose -f contrib/podman/podman-compose.yml logs -f
 #   podman-compose -f contrib/podman/podman-compose.yml down
 #
-# See ./README.md for Podman Desktop + WSL2 setup and rootless gotchas.
+# WITH a real Chrome browser (JS-rendered pages, Browser Steps, Visual Selector).
+# Both the profile and the env var are needed -- the profile starts the browser,
+# the env var tells the app where it is:
+#
+#   PowerShell:
+#     $env:PLAYWRIGHT_DRIVER_URL = "ws://browser-sockpuppet-chrome:3000"
+#     podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d
+#
+#   bash:
+#     PLAYWRIGHT_DRIVER_URL=ws://browser-sockpuppet-chrome:3000 \
+#       podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d
+#
+# Needs podman-compose >= 1.0.4 for --profile. See ./PRICE-TRACKING.md for what
+# the browser unlocks, and ./README.md for setup and rootless gotchas.
 
 services:
   changedetection:
@@ -42,32 +55,47 @@ services:
     environment:
       # Used in notification bodies to link back to this instance.
       - BASE_URL=http://localhost:5000
+      # Empty unless you set it (see the header). Deliberately NOT hardcoded to
+      # the browser hostname: when it is set, the app shows the Browser Steps and
+      # Visual Selector UI, so hardcoding it would advertise those features on a
+      # stack where no browser is running.
+      - PLAYWRIGHT_DRIVER_URL=${PLAYWRIGHT_DRIVER_URL:-}
+      # Disable when the remote CDP implementation does not support
+      # Page.setBypassCSP - like with Obscura browser.
+      # - PLAYWRIGHT_BYPASS_CSP=false
       # - LOGGER_LEVEL=DEBUG
       # - FETCH_WORKERS=10
       # - PAGE_WATCH_LIMIT=100
-      # Uncomment together with the browser service below:
-      # - PLAYWRIGHT_DRIVER_URL=ws://browser-sockpuppet-chrome:3000
 
-    # depends_on:
-    #   browser-sockpuppet-chrome:
-    #     condition: service_started
+    # No depends_on for the browser, deliberately. The app does not talk to it at
+    # startup, only when a watch actually fetches, so a hard dependency would buy
+    # nothing and would fail the whole stack when the browser profile is off.
 
-  # Chrome-backed fetching. Uncomment this service AND the two lines above.
-  # browser-sockpuppet-chrome:
-  #   image: docker.io/dgtlmoon/sockpuppetbrowser:latest
-  #   container_name: browser-sockpuppet-chrome
-  #   hostname: browser-sockpuppet-chrome
-  #   restart: unless-stopped
-  #   # Podman defaults /dev/shm to 64MB; Chrome crashes with
-  #   # "Target closed" / renderer failures well before that is exhausted.
-  #   shm_size: 2gb
-  #   cap_add:
-  #     - SYS_ADMIN
-  #   environment:
-  #     - SCREEN_WIDTH=1920
-  #     - SCREEN_HEIGHT=1024
-  #     - SCREEN_DEPTH=16
-  #     - MAX_CONCURRENT_CHROME_PROCESSES=10
+  # Chrome wrapped in an API for fast page fetching. Started only with
+  # `--profile browser`, so plain `up -d` keeps running a single container.
+  browser-sockpuppet-chrome:
+    profiles: ["browser"]
+    image: docker.io/dgtlmoon/sockpuppetbrowser:latest
+    container_name: browser-sockpuppet-chrome
+    hostname: browser-sockpuppet-chrome
+    restart: unless-stopped
+
+    # Podman defaults /dev/shm to 64MB; Chrome dies with "Target closed" and
+    # renderer failures well before that is genuinely exhausted.
+    shm_size: 2gb
+
+    cap_add:
+      # May be more than strictly needed, but Chrome's sandbox wants it inside a
+      # container. https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md
+      - SYS_ADMIN
+
+    # Port 3000 is deliberately NOT published to the host. Only the app needs to
+    # reach it, and it does so over the compose network.
+    environment:
+      - SCREEN_WIDTH=1920
+      - SCREEN_HEIGHT=1024
+      - SCREEN_DEPTH=16
+      - MAX_CONCURRENT_CHROME_PROCESSES=10
 
 volumes:
   changedetection-data:

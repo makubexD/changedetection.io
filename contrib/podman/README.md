@@ -13,9 +13,11 @@ one that matters if you cannot install or run Docker.
 | `podman-compose.yml` | Compose file with the rootless-Podman deltas applied |
 | `changedetection.container` / `changedetection.volume` | Quadlet systemd units — the native Podman deployment |
 | `changedetection-kube.yaml` | Manifest for `podman kube play` (and real Kubernetes) |
+| `sockpuppetbrowser.container` / `changedetection.network` | Optional Quadlet units for Chrome-backed fetching |
 | `build.ps1` / `run.ps1` / `logs.ps1` | Windows one-liners |
 | `test.ps1` | Automated smoke test: build, run, check `:5000`, check persistence |
 | [`TESTING.md`](TESTING.md) | **Step-by-step test procedure and full command reference** |
+| [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | **Using the app to watch product prices** |
 
 ## Windows: Podman Desktop + WSL2
 
@@ -49,6 +51,30 @@ To check the whole setup rather than just start it, follow
 [TESTING.md](TESTING.md) — it covers every deployment path, what each step
 should print, and what to do when one of them does not.
 
+### With a real Chrome browser
+
+JS-rendered pages, **Browser Steps** and the **Visual Selector** all need a
+browser. `sockpuppetbrowser` provides one; it is optional and off by default.
+
+```powershell
+.\contrib\podman\run.ps1 -WithBrowser    # app + Chrome in one pod
+.\contrib\podman\logs.ps1 -Browser       # Chrome's own logs
+.\contrib\podman\test.ps1 -WithBrowser   # verify the app can reach it
+```
+
+The proof it worked: **Browser Steps and the Visual Selector appear in the watch
+edit screen.** They are hidden entirely when no browser is configured.
+
+Watch out for one thing — how the app addresses the browser depends on the
+topology, and the two are not interchangeable:
+
+| Path | `PLAYWRIGHT_DRIVER_URL` |
+| --- | --- |
+| `run.ps1 -WithBrowser`, `kube play` (**shared pod**) | `ws://localhost:3000` |
+| `podman-compose`, Quadlet (**shared network**) | `ws://browser-sockpuppet-chrome:3000` |
+
+See [PRICE-TRACKING.md](PRICE-TRACKING.md) for what this unlocks.
+
 Or pull the prebuilt image instead of building:
 
 ```powershell
@@ -75,7 +101,13 @@ The deployment path with no compose dependency at all.
 
 ```bash
 mkdir -p ~/.config/containers/systemd
-cp changedetection.container changedetection.volume ~/.config/containers/systemd/
+cp changedetection.container changedetection.volume changedetection.network \
+   ~/.config/containers/systemd/
+
+# optional: add Chrome, then uncomment PLAYWRIGHT_DRIVER_URL in
+# changedetection.container so the app knows it is there
+cp sockpuppetbrowser.container ~/.config/containers/systemd/
+
 systemctl --user daemon-reload
 systemctl --user start changedetection
 journalctl --user -u changedetection -f

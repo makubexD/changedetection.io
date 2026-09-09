@@ -3,11 +3,12 @@
 # Runs the build / run / responds-on-:5000 / data-persists sequence from
 # TESTING.md as one command, and exits non-zero if any stage fails.
 #
-# Deliberately uses its OWN container and volume names, so running this can
+# Deliberately uses its OWN container, pod and volume names, so running this can
 # never touch or destroy a real `changedetection` deployment's watches.
 #
 # Usage:
 #   .\contrib\podman\test.ps1
+#   .\contrib\podman\test.ps1 -WithBrowser
 #   .\contrib\podman\test.ps1 -Image ghcr.io/dgtlmoon/changedetection.io:latest
 #   .\contrib\podman\test.ps1 -KeepRunning -Port 5001
 param(
@@ -20,6 +21,8 @@ param(
     # Fallback for older Buildah versions that mishandle the Dockerfile's
     # RUN --mount=type=cache directives.
     [switch]$NoCache,
+    # Also start sockpuppetbrowser and verify the app can actually reach it.
+    [switch]$WithBrowser,
     # Leave the container up afterwards for the manual steps in TESTING.md.
     [switch]$KeepRunning
 )
@@ -34,11 +37,17 @@ if (Test-Path Variable:\PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
 
-$repoRoot  = Resolve-Path "$PSScriptRoot\..\.."
-$container = 'cdio-smoketest'
-$volume    = 'cdio-smoketest-data'
-$image     = if ($Image) { $Image } else { "changedetection.io:$Tag" }
-$baseUrl   = "http://localhost:$Port/"
+$repoRoot    = Resolve-Path "$PSScriptRoot\..\.."
+$container   = 'cdio-smoketest'
+$browser     = 'cdio-smoketest-browser'
+$pod         = 'cdio-smoketest-pod'
+$volume      = 'cdio-smoketest-data'
+$image       = if ($Image) { $Image } else { "changedetection.io:$Tag" }
+$browserImage = 'docker.io/dgtlmoon/sockpuppetbrowser:latest'
+$baseUrl     = "http://localhost:$Port/"
+# In a pod both containers share a network namespace, so the app reaches Chrome
+# on localhost. On a network (podman-compose, Quadlet) it would be the hostname.
+$driverUrl   = 'ws://localhost:3000'
 
 $failed = @()
 
@@ -55,25 +64,59 @@ function Write-Fail([string]$Name, [string]$Detail) {
     $script:failed += $Name
 }
 
-# Dumps whatever the container managed to log. Called before every early exit,
+# Dumps whatever the containers managed to log. Called before every early exit,
 # because the log is normally the only thing that says why a stage failed.
 function Show-ContainerLogs {
     Write-Host ""
     Write-Host "--- podman logs $container ---" -ForegroundColor Yellow
     podman logs --tail 80 $container 2>&1 | Write-Host
+    if ($WithBrowser) {
+        Write-Host "--- podman logs $browser ---" -ForegroundColor Yellow
+        podman logs --tail 40 $browser 2>&1 | Write-Host
+    }
     Write-Host "--- end of logs ---" -ForegroundColor Yellow
 }
 
-function Remove-TestContainer {
+function Remove-TestContainers {
     podman rm -f $container 2>$null | Out-Null
+    if ($WithBrowser) {
+        podman rm -f $browser 2>$null | Out-Null
+        podman pod rm -f $pod 2>$null | Out-Null
+    }
 }
 
-function Start-TestContainer {
+function Start-TestStack {
+    if (-not $WithBrowser) {
+        podman run -d `
+            --name $container `
+            -p "127.0.0.1:${Port}:5000" `
+            -v "${volume}:/datastore" `
+            -e "BASE_URL=$baseUrl" `
+            $image | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    }
+
+    # The pod owns the published port; containers inside must not publish their own.
+    podman pod create --name $pod -p "127.0.0.1:${Port}:5000" | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+
     podman run -d `
+        --pod $pod `
+        --name $browser `
+        --shm-size=2g `
+        --cap-add SYS_ADMIN `
+        -e SCREEN_WIDTH=1920 `
+        -e SCREEN_HEIGHT=1024 `
+        -e MAX_CONCURRENT_CHROME_PROCESSES=10 `
+        $browserImage | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+
+    podman run -d `
+        --pod $pod `
         --name $container `
-        -p "127.0.0.1:${Port}:5000" `
         -v "${volume}:/datastore" `
         -e "BASE_URL=$baseUrl" `
+        -e "PLAYWRIGHT_DRIVER_URL=$driverUrl" `
         $image | Out-Null
     return ($LASTEXITCODE -eq 0)
 }
@@ -99,6 +142,9 @@ Write-Host "  image:     $image"
 Write-Host "  container: $container"
 Write-Host "  volume:    $volume"
 Write-Host "  url:       $baseUrl"
+if ($WithBrowser) {
+    Write-Host "  browser:   $browserImage (pod $pod, $driverUrl)"
+}
 
 # --- 0. Preflight ------------------------------------------------------------
 Write-Stage "0. Preflight"
@@ -136,12 +182,12 @@ if ($Image -or $SkipBuild) {
 
 # --- 2. Clean up anything left by a previous run -----------------------------
 Write-Stage "2. Clean slate"
-Remove-TestContainer
+Remove-TestContainers
 Write-Pass "clean slate"
 
 # --- 3. Run ------------------------------------------------------------------
 Write-Stage "3. Run"
-if (-not (Start-TestContainer)) {
+if (-not (Start-TestStack)) {
     Write-Fail "run" "podman run failed. If it is a port conflict, pass -Port with something free."
     exit 1
 }
@@ -152,10 +198,42 @@ Write-Stage "4. HTTP 200 on $baseUrl (up to ${TimeoutSec}s)"
 if (-not (Wait-ForApp $TimeoutSec)) {
     Write-Fail "http" "no 200 within ${TimeoutSec}s"
     Show-ContainerLogs
-    if (-not $KeepRunning) { Remove-TestContainer }
+    if (-not $KeepRunning) { Remove-TestContainers }
     exit 1
 }
 Write-Pass "http"
+
+# --- 4b. The app can actually reach Chrome -----------------------------------
+# Checked from INSIDE the app container, which is the connection that matters.
+# Testing it from the host would prove nothing: port 3000 is pod-internal, and a
+# browser that is running but unreachable is exactly the failure this catches --
+# the app would silently fall back and the Browser Steps UI would never appear.
+if ($WithBrowser) {
+    Write-Stage "4b. App -> browser reachability on $driverUrl"
+
+    $reached = $false
+    for ($i = 0; $i -lt 15; $i++) {
+        podman exec $container python -c "import socket; socket.create_connection(('localhost', 3000), 5).close()" 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { $reached = $true; break }
+        Start-Sleep -Seconds 2
+    }
+    if (-not $reached) {
+        Write-Fail "browser" "the app container cannot open a connection to localhost:3000"
+        Show-ContainerLogs
+        if (-not $KeepRunning) { Remove-TestContainers }
+        exit 1
+    }
+
+    # And that the app was actually told about it -- reachable but unconfigured
+    # looks identical from the outside.
+    $envSet = podman exec $container sh -c "echo \$PLAYWRIGHT_DRIVER_URL" 2>$null
+    if (($envSet | Out-String).Trim() -ne $driverUrl) {
+        Write-Fail "browser" "PLAYWRIGHT_DRIVER_URL is '$(($envSet | Out-String).Trim())', expected '$driverUrl'"
+        if (-not $KeepRunning) { Remove-TestContainers }
+        exit 1
+    }
+    Write-Pass "browser"
+}
 
 # --- 5. Data survives the container being destroyed --------------------------
 # The point of the named volume: rootless Podman maps container root to an
@@ -167,12 +245,27 @@ podman exec $container sh -c "echo persisted-ok > /datastore/.smoketest" | Out-N
 if ($LASTEXITCODE -ne 0) {
     Write-Fail "persistence" "could not write to /datastore -- check the volume mount"
     Show-ContainerLogs
-    if (-not $KeepRunning) { Remove-TestContainer }
+    if (-not $KeepRunning) { Remove-TestContainers }
     exit 1
 }
 
-Remove-TestContainer
-if (-not (Start-TestContainer)) {
+# Only the app container is replaced; the browser and pod stay up.
+podman rm -f $container 2>$null | Out-Null
+
+if ($WithBrowser) {
+    podman run -d --pod $pod --name $container `
+        -v "${volume}:/datastore" `
+        -e "BASE_URL=$baseUrl" `
+        -e "PLAYWRIGHT_DRIVER_URL=$driverUrl" `
+        $image | Out-Null
+} else {
+    podman run -d --name $container `
+        -p "127.0.0.1:${Port}:5000" `
+        -v "${volume}:/datastore" `
+        -e "BASE_URL=$baseUrl" `
+        $image | Out-Null
+}
+if ($LASTEXITCODE -ne 0) {
     Write-Fail "persistence" "container did not come back up after removal"
     exit 1
 }
@@ -189,7 +282,7 @@ for ($i = 0; $i -lt 15; $i++) {
 if (($marker | Out-String).Trim() -ne 'persisted-ok') {
     Write-Fail "persistence" "marker did not survive: got '$(($marker | Out-String).Trim())'"
     Show-ContainerLogs
-    if (-not $KeepRunning) { Remove-TestContainer }
+    if (-not $KeepRunning) { Remove-TestContainers }
     exit 1
 }
 podman exec $container rm -f /datastore/.smoketest 2>$null | Out-Null
@@ -199,10 +292,14 @@ Write-Pass "persistence"
 if ($KeepRunning) {
     Write-Stage "6. Teardown (skipped)"
     Write-Host "      $container is still running on $baseUrl"
-    Write-Host "      remove it with: podman rm -f $container; podman volume rm $volume"
+    if ($WithBrowser) {
+        Write-Host "      remove it with: podman pod rm -f $pod; podman volume rm $volume"
+    } else {
+        Write-Host "      remove it with: podman rm -f $container; podman volume rm $volume"
+    }
 } else {
     Write-Stage "6. Teardown"
-    Remove-TestContainer
+    Remove-TestContainers
     podman volume rm $volume 2>$null | Out-Null
     Write-Pass "teardown"
 }
@@ -213,6 +310,8 @@ if ($failed.Count -gt 0) {
     Write-Host "SMOKE TEST FAILED: $($failed -join ', ')" -ForegroundColor Red
     exit 1
 }
-Write-Host "SMOKE TEST PASSED -- built, ran, served $baseUrl, and kept its data." -ForegroundColor Green
+$what = if ($WithBrowser) { "built, ran, served $baseUrl, reached Chrome, and kept its data." }
+        else              { "built, ran, served $baseUrl, and kept its data." }
+Write-Host "SMOKE TEST PASSED -- $what" -ForegroundColor Green
 Write-Host "Steps 6 and 8 of TESTING.md (functional check, compose, kube) are still manual."
 exit 0
