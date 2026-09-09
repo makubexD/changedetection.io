@@ -1,0 +1,15 @@
+# Quadlet network unit shared by changedetection.container and
+# sockpuppetbrowser.container.
+#
+# Unlike the pod used by run.ps1, containers here are separate and reach each
+# other by CONTAINER NAME over this network's DNS -- which is why
+# changedetection.container uses ws://browser-sockpuppet-chrome:3000 rather than
+# ws://localhost:3000.
+#
+# Install it alongside the other units in ~/.config/containers/systemd/.
+# Podman names the resulting network "systemd-changedetection".
+[Unit]
+Description=changedetection.io internal network
+
+[Network]
+NetworkName=changedetection

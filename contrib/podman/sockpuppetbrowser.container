@@ -1,0 +1,59 @@
+# Quadlet unit for sockpuppetbrowser -- Chrome wrapped in an API, used by
+# changedetection.io to render JS-heavy pages and to drive Browser Steps.
+#
+# OPTIONAL. changedetection.container runs perfectly well without it; you only
+# need this if you want JS rendering, Browser Steps or the Visual Selector.
+#
+# Install (rootless, as your normal user -- do NOT use sudo):
+#   mkdir -p ~/.config/containers/systemd
+#   cp changedetection.container changedetection.volume changedetection.network \
+#      sockpuppetbrowser.container ~/.config/containers/systemd/
+#   systemctl --user daemon-reload
+#   systemctl --user start changedetection
+#
+# Then uncomment the PLAYWRIGHT_DRIVER_URL line in changedetection.container,
+# or the app will not know the browser exists.
+#
+#   systemctl --user status sockpuppetbrowser
+#   journalctl --user -u sockpuppetbrowser -f
+#
+# Chrome crashes are visible ONLY in this unit's journal -- the app just sees a
+# failed fetch.
+
+[Unit]
+Description=sockpuppetbrowser - Chrome fetcher for changedetection.io
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+Image=docker.io/dgtlmoon/sockpuppetbrowser:latest
+ContainerName=browser-sockpuppet-chrome
+AutoUpdate=registry
+
+Network=changedetection.network
+
+# Chrome's sandbox wants this inside a container. It may be more than strictly
+# necessary on your platform.
+# https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md
+AddCapability=SYS_ADMIN
+
+# Podman defaults /dev/shm to 64MB and Chrome dies with "Target closed" and
+# renderer failures well before that is genuinely exhausted. Written as
+# PodmanArgs rather than the ShmSize= key, which older Quadlet does not have.
+PodmanArgs=--shm-size=2g
+
+Environment=SCREEN_WIDTH=1920
+Environment=SCREEN_HEIGHT=1024
+Environment=SCREEN_DEPTH=16
+Environment=MAX_CONCURRENT_CHROME_PROCESSES=10
+
+# Port 3000 is deliberately NOT published. Only changedetection needs to reach
+# it, and it does so over changedetection.network.
+
+[Service]
+Restart=always
+# First run pulls a large image.
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
