@@ -157,3 +157,99 @@ the global default applies to everything otherwise.
 | Notifications on every check, price unchanged | Set **Threshold (%)** to 1–2. Whitespace or a rotating banner inside your filter also does this — tighten the selector. |
 | `403` / `503` / CAPTCHA | The site is blocking automated access. Increase the interval first. Some sites will not be watchable at all. |
 | Price detected but wrong (e.g. 10x) | Currency/decimal separator ambiguity, or you captured a "was" price. Check the Preview text and tighten the filter to the current price element. |
+
+---
+
+# Worked examples
+
+## 8. tous.com
+
+**Watch the product, not the category.**
+`https://www.tous.com/pe-es/carteras/bandoleras/c/486` is a *category* listing —
+every bag on it, plus sorting, badges and pagination. A change there tells you
+almost nothing (section 4).
+
+1. Open the category in your own browser and click through to the specific bag
+   you want.
+2. Copy **that** URL — the product page — and add it as the watch.
+3. Processor → **Restock & Price detection**, fetch method → Chrome.
+   TOUS renders a lot client-side, so the browser from section 1 is not optional
+   here.
+4. **Recheck, then look at the price column.** If a price in `S/` appears, you
+   are done — set your **Below price** target and a 1–2% threshold.
+5. If no price appears, use the Visual Selector: click the displayed price on the
+   rendered page, preview to confirm the filtered text is only the price, then
+   add a condition **Extracted number** *less than* your target (section 3).
+
+Repeat per bag you care about. Several one-product watches beat one category
+watch: each has its own target price, and each alert names the actual item.
+
+## 9. Amazon
+
+**Use the canonical product URL.** Strip the tracking junk — everything from
+`/ref=` onwards, and any `?tag=`/`?th=` parameters:
+
+```
+https://www.amazon.com/dp/B0XXXXXXXX
+```
+
+The `/dp/<ASIN>` form is stable; the long titled URLs are not, and they change
+under you.
+
+Amazon product pages usually carry clean structured data, so **Restock & Price
+detection** often picks up price and stock with no filter at all. Try it before
+reaching for the Visual Selector.
+
+**What to expect, honestly.** Amazon actively detects and blocks automated
+browsers. You may see `503`s, CAPTCHA interstitials, or a page that renders
+without a price. This is not a misconfiguration on your side and there is no
+setting that reliably defeats it. What helps:
+
+- A **long interval** — 12 hours or daily. Frequent checks are the fastest way
+  to get blocked.
+- Setting a realistic **User-Agent** in the watch's Request headers.
+- Accepting that some listings simply will not be watchable.
+
+If a given ASIN keeps failing, an alternative is to watch a price-history site
+for that product instead of Amazon directly.
+
+## 10. Cart pages via session cookie
+
+Both `https://www.tous.com/pe-es/cart` and `https://www.amazon.com/cart` require
+you to be logged in. changedetection.io can send your session cookie so it sees
+the same page you do — **no password is stored anywhere**.
+
+1. Open the cart in your browser, logged in.
+2. DevTools (**F12**) → **Network** → reload → click the document request for the
+   cart page.
+3. Under **Request Headers**, find `Cookie:` and copy the entire value.
+4. In the watch → **Edit** → **Request headers**, add:
+
+   | Key | Value |
+   | --- | --- |
+   | `Cookie` | *(the whole string you copied)* |
+   | `User-Agent` | *(copy your browser's, from the same request)* |
+
+5. Recheck and preview. Seeing your actual cart contents means it worked; being
+   bounced to a login page means it did not.
+
+**Read this before relying on it.** Three things make cart watching materially
+worse than watching products, and none of them are fixable by configuration:
+
+- **The cookie expires**, typically in days to weeks — sooner if you log out
+  anywhere. When it does, the watch quietly starts seeing the logged-out page.
+  It will look like the cart changed.
+- **The cart changes when you change it.** Add an item, remove one, change a
+  quantity — every one of those is a "change" and fires an alert that has
+  nothing to do with price.
+- **A cart is not a price feed.** It shows a total. A drop on one item and a rise
+  on another can net out to no change at all.
+
+So: use per-product watches as the real mechanism, and treat a cart watch as a
+convenience for a shopping session you are actively running. If you do want a
+cart watch, put a filter on the total element rather than watching the whole
+page, and give it a long interval.
+
+**Keep your cookie out of the repository.** It is a live credential for your
+logged-in session — anyone holding it is you, on that site. It belongs in the
+watch's settings in the app, nowhere else.
