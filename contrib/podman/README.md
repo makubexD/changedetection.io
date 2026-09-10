@@ -99,6 +99,29 @@ changes:
 .\contrib\podman\run.ps1 -Image ghcr.io/makubexd/changedetection.io:stable
 ```
 
+### After a `git pull`
+
+`run.ps1` is safe to re-run at any time. It clears whatever the previous run
+left behind — container, browser container and pod — then starts fresh against
+the same `changedetection-data` volume, so your watches survive untouched.
+
+```powershell
+git pull
+.\contrib\podman\build.ps1              # only if the IMAGE changed
+.\contrib\podman\run.ps1 -WithBrowser   # always
+```
+
+**Rebuild only when the image contents changed** — `Dockerfile`,
+`requirements.txt`, or the application code. A pull that touched only
+`contrib/podman/` (scripts, compose file, docs) does not need a rebuild; just
+re-run `run.ps1`. When in doubt, rebuilding is harmless, only slow.
+
+On the compose path the equivalent is:
+
+```powershell
+podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d --force-recreate
+```
+
 To check the whole setup rather than just start it, follow
 [TESTING.md](TESTING.md) — it covers every deployment path, what each step
 should print, and what to do when one of them does not.
