@@ -96,7 +96,7 @@ Skipping the build? Point `run.ps1` at a published image instead — nothing els
 changes:
 
 ```powershell
-.\contrib\podman\run.ps1 -Image ghcr.io/dgtlmoon/changedetection.io:latest
+.\contrib\podman\run.ps1 -Image ghcr.io/makubexd/changedetection.io:stable
 ```
 
 To check the whole setup rather than just start it, follow
