@@ -56,10 +56,15 @@ services:
       # Used in notification bodies to link back to this instance.
       - BASE_URL=http://localhost:5000
       # Empty unless you set it (see the header). Deliberately NOT hardcoded to
-      # the browser hostname: when it is set, the app shows the Browser Steps and
-      # Visual Selector UI, so hardcoding it would advertise those features on a
-      # stack where no browser is running.
+      # the browser hostname: setting it makes the app treat Chrome as available,
+      # so hardcoding it would point every watch at a browser that is not running
+      # whenever the stack is started without the browser profile.
       - PLAYWRIGHT_DRIVER_URL=${PLAYWRIGHT_DRIVER_URL:-}
+      # Optional companion: set this to html_webdriver alongside the driver URL
+      # and NEW watches default to Chrome instead of the plain HTTP fetcher.
+      # Seeds the settings default only, so it affects a fresh datastore; an
+      # existing one keeps its saved value (Settings -> Fetching -> Fetch Method).
+      - DEFAULT_FETCH_BACKEND=${DEFAULT_FETCH_BACKEND:-}
       # Disable when the remote CDP implementation does not support
       # Page.setBypassCSP - like with Obscura browser.
       # - PLAYWRIGHT_BYPASS_CSP=false
