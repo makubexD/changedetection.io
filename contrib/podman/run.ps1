@@ -129,6 +129,12 @@ podman run -d `
     $browserImage
 if ($LASTEXITCODE -ne 0) { throw "podman run (browser) failed with exit code $LASTEXITCODE" }
 
+# DEFAULT_FETCH_BACKEND makes new watches use Chrome instead of the plain HTTP
+# fetcher. Without it the browser runs but nothing points at it: every watch
+# keeps fetching plain HTML until you change Fetch Method by hand, one at a time.
+# It seeds the settings DEFAULT, so it takes effect on a FRESH datastore -- an
+# existing install keeps its saved value, changed under
+# Settings -> Fetching -> Fetch Method.
 podman run -d `
     --pod $podName `
     --name $name `
@@ -136,11 +142,19 @@ podman run -d `
     -v changedetection-data:/datastore `
     -e "BASE_URL=http://localhost:$Port" `
     -e "PLAYWRIGHT_DRIVER_URL=ws://localhost:3000" `
+    -e "DEFAULT_FETCH_BACKEND=html_webdriver" `
     $image
 if ($LASTEXITCODE -ne 0) { Stop-WithReason 'podman run' $LASTEXITCODE $Port }
 
 Write-Host "changedetection.io is starting on http://localhost:$Port (pod: $podName)"
-Write-Host "Chrome is available -- the watch edit screen should now show"
-Write-Host "'Browser Steps' and the Visual Selector. If it does not, the app cannot"
-Write-Host "reach the browser; check: .\contrib\podman\logs.ps1 -Browser"
-Write-Host "Follow the app logs with: .\contrib\podman\logs.ps1"
+Write-Host ""
+Write-Host "To confirm Chrome is wired up: open a watch -> Edit -> General and read"
+Write-Host "the Fetch Method labels. One must say:"
+Write-Host "    Playwright Chromium/Javascript via 'ws://localhost:3000'"
+Write-Host "Seeing only 'WebDriver Chrome/Javascript' means the app did not get the"
+Write-Host "driver URL. Existing watches keep the fetcher they were saved with --"
+Write-Host "select the Playwright option and Save, or change the default under"
+Write-Host "Settings -> Fetching -> Fetch Method."
+Write-Host ""
+Write-Host "App logs:     .\contrib\podman\logs.ps1"
+Write-Host "Chrome logs:  .\contrib\podman\logs.ps1 -Browser"

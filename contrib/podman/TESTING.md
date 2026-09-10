@@ -223,10 +223,21 @@ podman exec changedetection python -c "import socket; socket.create_connection((
 | c | `browser reachable` |
 | d | startup lines, no repeated renderer crash |
 
-**Then the check that actually proves it end to end:** open a watch → **Edit**.
-A **Browser Steps** tab and the **Visual Selector** must now be present. They are
-hidden whenever the app has no reachable browser, so seeing them means the wiring
-is right — (c) alone only proves the port is open.
+**Then the check that actually proves it end to end:** open a watch → **Edit** →
+**General** and read the **Fetch Method** labels. One of them must say
+
+```
+Playwright Chromium/Javascript via 'ws://localhost:3000'
+```
+
+If instead you only see `WebDriver Chrome/Javascript`, the app never received
+`PLAYWRIGHT_DRIVER_URL` and silently fell back to Selenium — (c) alone only proves
+the port is open, not that the app knows about it.
+
+Do **not** judge this by the presence of tabs. The **Browser Steps** tab follows
+the watch's own Fetch Method, so it stays hidden until you select the Playwright
+option and save; the **Visual Filter Selector** tab is always present regardless.
+See [PRICE-TRACKING.md](PRICE-TRACKING.md) section 1.
 
 `test.ps1 -WithBrowser` automates a through c:
 
