@@ -26,7 +26,10 @@
 param(
     [string]$ReleaseBranch = 'maku-release',
     # Sync even when upstream's own CI is red or still running. Use knowingly.
-    [switch]$SkipUpstreamCiCheck
+    [switch]$SkipUpstreamCiCheck,
+    # Push without checking which account you are. Only for a clone that has
+    # no profiles configured yet and that you have verified by hand.
+    [switch]$SkipIdentityCheck
 )
 $ErrorActionPreference = 'Stop'
 
@@ -59,14 +62,18 @@ function Assert-UpstreamRemote {
     }
 }
 
-# The identity guard lives outside the repo because it names accounts. Run it
-# when it is there; say so plainly when it is not, rather than pretending the
-# check passed.
+# The guard is a sibling in this directory, so it is present on every clone
+# that has this script -- which is the point of both living in the repo. It
+# throws on a mismatch and that is intended to stop the sync: this function
+# pushes two branches, and doing so as the wrong account is the exact mistake
+# the guard exists to prevent.
 function Invoke-IdentityGuard {
-    $guard = Join-Path $repoRoot '..\scripts\verify-identity.ps1'
-    if (Test-Path $guard) { & $guard -RepoPath $repoRoot; return }
-    Write-Host "NOTE: verify-identity.ps1 not found next to the repo -- identity NOT checked."
-    Write-Host "      Committing as: $(& git config user.name) <$(& git config user.email)>"
+    $guard = Join-Path $PSScriptRoot 'identity.ps1'
+    if (-not (Test-Path $guard)) {
+        throw "identity.ps1 is missing from $PSScriptRoot -- refusing to push " +
+              "without an identity check. Restore it, or re-run with -SkipIdentityCheck."
+    }
+    & $guard -Action check
 }
 
 # Upstream already ran its ~50-job matrix on this exact SHA. Reading that
@@ -114,7 +121,11 @@ function Show-BannerState([string]$branch) {
 
 Push-Location $repoRoot
 try {
-    Invoke-IdentityGuard
+    if ($SkipIdentityCheck) {
+        Write-Host "Identity check SKIPPED by request -- pushing as $(& git config user.name)."
+    } else {
+        Invoke-IdentityGuard
+    }
     Assert-CleanTree
     Assert-UpstreamRemote
 

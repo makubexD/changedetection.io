@@ -23,7 +23,7 @@
 # ABSENT -- and 'restore' puts all of it back, unsetting what was unset rather
 # than guessing a value for it.
 param(
-    [ValidateSet('check', 'use', 'save', 'list', 'restore')]
+    [ValidateSet('check', 'use', 'save', 'list', 'restore', 'install-hook', 'uninstall-hook')]
     [string]$Action = 'check',
     [string]$Profile,
     # Override where profiles are stored. Defaults to .git\fork-identity.json.
@@ -243,10 +243,73 @@ function Assert-RemoteSafety($p) {
     }
 }
 
+# --- pre-push hook -----------------------------------------------------------
+# Running 'check' by hand only protects the pushes you remember to protect. A
+# pre-push hook protects all of them, including a plain 'git push' typed from
+# an editor. Hooks live in .git/hooks, which is per-clone and never committed,
+# so this has to be installed rather than shipped.
+$HOOK_MARKER = 'fork-identity-guard'
+$HOOK_BODY = @'
+#!/bin/sh
+# fork-identity-guard: installed by contrib/fork/identity.ps1 -Action install-hook
+# Remove with: .\contrib\fork\identity.ps1 -Action uninstall-hook
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+guard="$root/contrib/fork/identity.ps1"
+
+# Not every branch carries the tooling -- master is a pristine mirror of
+# upstream and has no contrib/fork/. Never block a push from a branch that has
+# no guard to run; sync-fork.ps1 checks up front for exactly that case.
+[ -f "$guard" ] || exit 0
+
+if command -v pwsh >/dev/null 2>&1; then ps=pwsh; else ps=powershell; fi
+if ! "$ps" -NoProfile -ExecutionPolicy Bypass -File "$guard" -Action check; then
+    echo "" >&2
+    echo "pre-push blocked by the fork identity guard (above)." >&2
+    echo "Override this one push with: git push --no-verify" >&2
+    exit 1
+fi
+exit 0
+'@
+
+function Get-HookPath {
+    $dir = & git -C $repoRoot rev-parse --git-path hooks
+    if ($LASTEXITCODE -ne 0) { throw "could not locate the hooks directory" }
+    if (-not [System.IO.Path]::IsPathRooted($dir)) { $dir = Join-Path $repoRoot $dir }
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    return (Join-Path $dir 'pre-push')
+}
+
+function Invoke-InstallHook {
+    $path = Get-HookPath
+    if ((Test-Path $path) -and ((Get-Content $path -Raw) -notmatch $HOOK_MARKER)) {
+        throw "A pre-push hook this script did not write already exists at $path. " +
+              "Move it aside, or merge the guard into it by hand."
+    }
+    # sh will not run a script with CRLF line endings -- "bad interpreter" -- and
+    # this file's own endings depend on how git checked it out.
+    [System.IO.File]::WriteAllText($path, ($HOOK_BODY -replace "`r`n", "`n"))
+    Write-Host "Installed the pre-push guard at $path"
+    Write-Host "Every 'git push' from this clone now runs the identity check first."
+    Write-Host "Bypass one push with: git push --no-verify"
+    Write-Host "Remove it with:       .\contrib\fork\identity.ps1 -Action uninstall-hook"
+}
+
+function Invoke-UninstallHook {
+    $path = Get-HookPath
+    if (-not (Test-Path $path)) { Write-Host "No pre-push hook is installed."; return }
+    if ((Get-Content $path -Raw) -notmatch $HOOK_MARKER) {
+        throw "The pre-push hook at $path was not written by this script -- leaving it alone."
+    }
+    Remove-Item $path -Force
+    Write-Host "Removed the pre-push guard from $path"
+}
+
 switch ($Action) {
     'check'   { Invoke-Check }
     'use'     { Invoke-Use }
     'save'    { Invoke-Save }
     'list'    { Invoke-List }
     'restore' { Invoke-Restore }
+    'install-hook'   { Invoke-InstallHook }
+    'uninstall-hook' { Invoke-UninstallHook }
 }
