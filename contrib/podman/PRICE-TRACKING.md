@@ -33,14 +33,48 @@ podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d
 Restarting this way does not touch your existing watches — they live in the
 `changedetection-data` volume, which is reattached to the new container.
 
-**How to know it actually worked.** Open any watch → **Edit**. If the browser is
-wired up you now see a **Browser Steps** tab and the **Visual Selector**. Those
-two are hidden entirely when the app has no browser configured, so their presence
-is the proof — not a log line.
+### How to know it actually worked
 
-Then set the watch's **Fetch method** to the Chrome/Playwright option instead of
-the basic fetcher. This is per-watch; a watch created earlier keeps whatever it
-had.
+**First, that the container got the setting:**
+
+```powershell
+podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'
+```
+
+Prints `ws://localhost:3000` → good. Prints nothing → the app has no browser, and
+nothing below will work.
+
+**Then, in the UI.** Open any watch → **Edit** → **General** tab and read the
+**Fetch Method** options. The label tells you what the app actually connected to:
+
+| Label you see | What it means |
+| --- | --- |
+| `Playwright Chromium/Javascript via 'ws://localhost:3000'` | Chrome is wired up ✅ |
+| `WebDriver Chrome/Javascript` | No `PLAYWRIGHT_DRIVER_URL` — the app fell back to Selenium ❌ |
+
+The URL in that label matches your topology: `ws://localhost:3000` for
+`run.ps1 -WithBrowser` and `podman kube play`, `ws://browser-sockpuppet-chrome:3000`
+for compose and Quadlet.
+
+### Now switch the watch to it — this part is not optional
+
+**Select the Playwright option and Save.** Until you do, the watch still uses the
+basic HTTP fetcher and behaves exactly as it did before, however well Chrome is
+running.
+
+Re-open **Edit** and a **Browser Steps** tab is now there. It was absent a moment
+ago because that tab is driven by *the fetcher this watch uses*, not by whether a
+browser exists — so it can only appear after you select one. Fetch Method first,
+tab second.
+
+To stop doing this per watch, set the default once under **Settings → Fetching →
+Fetch Method**; new watches then inherit it.
+
+> **The Visual Filter Selector tab proves nothing.** It is always present — it is
+> driven by the *processor*, not the browser — and until the watch uses a browser
+> fetcher it just says *"Sorry, this functionality only works with fetchers that
+> support Javascript and screenshots"*. Judge by the Fetch Method label and the
+> Browser Steps tab instead.
 
 ## 2. Watch a single product — the primary recipe
 
@@ -48,8 +82,10 @@ had.
 price in its structured data, which is precisely what the price mode wants.
 
 1. Paste the product URL into **Add a new change detection watch**.
-2. Open the watch → **Edit** → set **Processor** to **Restock & Price detection**.
-3. Set **Fetch method** to Chrome (step 1).
+2. Open the watch → **Edit** → **General** → set **Fetch Method** to the
+   **Playwright Chromium/Javascript** option, and **Save**. Do this first: several
+   things below only appear once the watch is on a browser fetcher.
+3. Re-open **Edit** → set **Processor** to **Restock & Price detection**.
 4. Go to the **Restock & Price Detection** tab and set:
 
 | Setting | What to put | Why |
@@ -74,7 +110,7 @@ button. Accepting does steps 2–3 for you.
 Some shops publish no structured data, or bury the price in a script. Extract it
 manually instead:
 
-1. Edit the watch → **Visual Selector** tab → click the price on the rendered
+1. Edit the watch → **Visual Filter Selector** tab → click the price on the rendered
    page. That fills in a CSS/xPath filter scoped to that element. (Or write the
    selector yourself under **Filters & Triggers**.)
 2. Preview the watch and confirm the filtered text is *just* the price, e.g.
@@ -99,7 +135,7 @@ grid reorders, a badge appears, a new item arrives. All of that is a "change",
 and none of it is the price of the thing you care about. You will get alerts that
 mean nothing and eventually stop reading them.
 
-If you do want it, scope a filter to a single product tile (Visual Selector →
+If you do want it, scope a filter to a single product tile (Visual Filter Selector →
 click that tile's price) so everything else on the page is ignored. At that point
 you have rebuilt a single-product watch the hard way — which is the argument for
 just watching the product URL.
@@ -152,9 +188,11 @@ the global default applies to everything otherwise.
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| Price column empty, no error | No structured data on the page → section 3 (Visual Selector + `extracted_number`). |
+| Price column empty, no error | No structured data on the page → section 3 (Visual Filter Selector + `extracted_number`). |
 | Price empty **and** the page looks unrendered in Preview | Watch is still on the basic fetcher. Set **Fetch method** to Chrome; confirm Browser Steps is visible (section 1). |
-| No **Browser Steps** tab at all | The app has no `PLAYWRIGHT_DRIVER_URL`, or it points somewhere unreachable. Pods use `ws://localhost:3000`, compose/Quadlet use `ws://browser-sockpuppet-chrome:3000` — they are not interchangeable. |
+| No **Browser Steps** tab at all | **Most likely: this watch is not on the Playwright fetcher.** That tab follows the watch's own Fetch Method, not whether a browser exists. Edit → General → select the Playwright option → Save → re-open. |
+| Fetch Method says `WebDriver Chrome/Javascript`, never Playwright | The app has no `PLAYWRIGHT_DRIVER_URL`, so it fell back to Selenium. Check with `podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'`. Pods use `ws://localhost:3000`, compose/Quadlet use `ws://browser-sockpuppet-chrome:3000` — they are not interchangeable. |
+| **Visual Filter Selector** says "Sorry, this functionality only works with fetchers that support Javascript and screenshots" | Same cause: the watch is on the basic fetcher. That tab is always visible, so its presence never proved anything. |
 | Watch stuck "Checking" forever | Browser unreachable or wedged: `.\contrib\podman\logs.ps1 -Browser`. |
 | Chrome errors: "Target closed", renderer crashes | `/dev/shm` too small. `--shm-size=2g` (run.ps1 sets this), `shm_size: 2gb` in compose, the `dshm` emptyDir in the kube manifest. |
 | Notifications on every check, price unchanged | Set **Threshold (%)** to 1–2. Whitespace or a rotating banner inside your filter also does this — tighten the selector. |

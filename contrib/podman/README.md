@@ -166,8 +166,17 @@ browser. `sockpuppetbrowser` provides one; it is optional and off by default.
 .\contrib\podman\test.ps1 -WithBrowser   # verify the app can reach it
 ```
 
-The proof it worked: **Browser Steps and the Visual Selector appear in the watch
-edit screen.** They are hidden entirely when no browser is configured.
+The proof it worked: open a watch → **Edit** → **General** and read the **Fetch
+Method** labels. One must say `Playwright Chromium/Javascript via
+'ws://localhost:3000'`. Seeing only `WebDriver Chrome/Javascript` means the app
+never got `PLAYWRIGHT_DRIVER_URL`.
+
+Select that option and **Save** — a watch keeps using plain HTTP until you do,
+and the **Browser Steps** tab only appears afterwards. `-WithBrowser` also sets
+`DEFAULT_FETCH_BACKEND`, so on a *fresh* datastore new watches already use Chrome;
+an existing install keeps its saved default until you change **Settings →
+Fetching → Fetch Method**. Full walkthrough in
+[PRICE-TRACKING.md](PRICE-TRACKING.md) section 1.
 
 The browser image is **pinned by digest**, not `:latest`. That tag is rebuilt
 often, and its Dockerfile installs whatever Chrome Stable is current on build day

@@ -39,9 +39,15 @@ Environment=BASE_URL=http://localhost:5000
 # changedetection.network. (run.ps1 uses a pod instead, where the same thing is
 # reached at ws://localhost:3000 -- do not copy that value here.)
 #
-# Setting this also makes the Browser Steps and Visual Selector UI appear in the
-# app, so leave it commented out unless the browser is actually running.
+# Setting this makes the app treat Chrome as available, so leave it commented
+# out unless the browser is actually running.
 # Environment=PLAYWRIGHT_DRIVER_URL=ws://browser-sockpuppet-chrome:3000
+#
+# Uncomment alongside it to have NEW watches default to Chrome rather than the
+# plain HTTP fetcher. Seeds the settings default only: it applies to a fresh
+# datastore, while an existing one keeps its saved value, changed under
+# Settings -> Fetching -> Fetch Method.
+# Environment=DEFAULT_FETCH_BACKEND=html_webdriver
 
 [Service]
 Restart=always

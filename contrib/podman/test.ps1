@@ -120,6 +120,7 @@ function Start-TestStack {
         -v "${volume}:/datastore" `
         -e "BASE_URL=$baseUrl" `
         -e "PLAYWRIGHT_DRIVER_URL=$driverUrl" `
+        -e "DEFAULT_FETCH_BACKEND=html_webdriver" `
         $image | Out-Null
     return ($LASTEXITCODE -eq 0)
 }
@@ -235,6 +236,15 @@ if ($WithBrowser) {
         if (-not $KeepRunning) { Remove-TestContainers }
         exit 1
     }
+
+    # A browser nothing is pointed at is a browser nobody uses: without this,
+    # every new watch still defaults to the plain HTTP fetcher.
+    $backend = podman exec $container sh -c "echo \$DEFAULT_FETCH_BACKEND" 2>$null
+    if (($backend | Out-String).Trim() -ne 'html_webdriver') {
+        Write-Fail "browser" "DEFAULT_FETCH_BACKEND is '$(($backend | Out-String).Trim())', expected 'html_webdriver'"
+        if (-not $KeepRunning) { Remove-TestContainers }
+        exit 1
+    }
     Write-Pass "browser"
 }
 
@@ -260,6 +270,7 @@ if ($WithBrowser) {
         -v "${volume}:/datastore" `
         -e "BASE_URL=$baseUrl" `
         -e "PLAYWRIGHT_DRIVER_URL=$driverUrl" `
+        -e "DEFAULT_FETCH_BACKEND=html_webdriver" `
         $image | Out-Null
 } else {
     podman run -d --name $container `

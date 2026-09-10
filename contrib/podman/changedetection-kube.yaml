@@ -28,11 +28,16 @@ spec:
       env:
         - name: BASE_URL
           value: "http://localhost:5000"
-        # Uncomment together with the browser container below. Setting this also
-        # makes the Browser Steps / Visual Selector UI appear, so do not set it
-        # while the browser is absent.
+        # Uncomment together with the browser container below. Setting it makes
+        # the app treat Chrome as available, so do not set it while the browser
+        # is absent -- watches would be pointed at something that is not there.
         # - name: PLAYWRIGHT_DRIVER_URL
         #   value: "ws://localhost:3000"
+        # Uncomment alongside it so NEW watches default to Chrome rather than
+        # the plain HTTP fetcher. Seeds the settings default only, so it applies
+        # to a fresh datastore; an existing one keeps its saved value.
+        # - name: DEFAULT_FETCH_BACKEND
+        #   value: "html_webdriver"
       volumeMounts:
         - name: changedetection-data
           mountPath: /datastore
