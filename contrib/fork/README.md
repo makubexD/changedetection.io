@@ -10,6 +10,7 @@ be proposable upstream unchanged.
 | File | What it does |
 | --- | --- |
 | `sync-fork.ps1` | Fetch upstream → fast-forward `master` → merge `master` into `maku-release` → push both |
+| `identity.ps1` | Switch this clone between GitHub accounts, guard pushes, and put the machine back as found |
 
 ```powershell
 .\contrib\fork\sync-fork.ps1
@@ -17,6 +18,91 @@ be proposable upstream unchanged.
 
 Run it from anywhere inside the repo. It adds the `upstream` remote if the clone
 does not have one, so a fresh `git clone` of the fork works with no setup.
+
+## Identities — `identity.ps1`
+
+Most people who work on this fork also have a work GitHub account on the same
+machine. Committing here as that account is the mistake this script exists to
+prevent.
+
+```powershell
+.\contrib\fork\identity.ps1                    # check — run before pushing
+.\contrib\fork\identity.ps1 -Action list
+.\contrib\fork\identity.ps1 -Action save    -Profile fork
+.\contrib\fork\identity.ps1 -Action use     -Profile fork
+.\contrib\fork\identity.ps1 -Action restore
+```
+
+### No identifiers are in this repo, on purpose
+
+This fork is **public**. A name, an email or a username committed here is
+published permanently — history, forks, mirrors, scrapers. So `identity.ps1`
+contains none of them. Profiles live in `.git\fork-identity.json`, which is
+inside `.git` and therefore cannot be committed even by accident.
+
+`save` writes that file from whatever is configured right now, so bootstrapping
+a machine is: set the identity once, save it under a name, done.
+
+### Setting up a new machine
+
+```powershell
+# 1. the fork identity, saved as the profile the guard checks against
+git config --local user.name  "makubexD"
+git config --local user.email "you@example.com"
+git config --local credential.https://github.com.username "makubexD"
+.\contrib\fork\identity.ps1 -Action save -Profile fork
+
+# 2. optional: record the machine's own work identity too, so switching back
+#    to it is one command rather than four
+git config --local user.name  "Work Name"
+git config --local user.email "work@example.com"
+git config --local credential.https://github.com.username "work-username"
+.\contrib\fork\identity.ps1 -Action save -Profile work
+
+# 3. back to the fork identity, and confirm
+.\contrib\fork\identity.ps1 -Action use -Profile fork
+.\contrib\fork\identity.ps1
+```
+
+Profile names are free-form; `fork` is the only one that matters, because that
+is what `check` verifies against unless you pass `-Profile`.
+
+### What it will and will not touch
+
+**It only ever writes repo-local git config.** Your global `user.name` and
+`user.email` are never modified, so every other repository on the machine
+carries on exactly as before. That matters more than it sounds: on a machine
+whose *global* identity is the work account, the fork identity has to be a
+local override, and the global one has to survive untouched.
+
+**The one machine-wide thing is `gh`'s active account**, which is global by
+design — there is no per-repository version of it. So the first `use` snapshots
+the whole prior state before changing anything:
+
+| Snapshotted | Restored by `-Action restore` |
+| --- | --- |
+| repo-local `user.name`, `user.email`, credential username | set back, **or unset again if they were unset** |
+| `gh`'s active account | switched back |
+
+The snapshot is taken **once** and never overwritten, so a second switch cannot
+record the first switch's state as "original". `restore` clears it afterwards,
+so the next switch starts a fresh one. Restoring an unset key as *unset* rather
+than as an empty string is the part that keeps a machine genuinely untouched — a
+clone that inherited its identity from global config goes back to inheriting it.
+
+Never switched this clone? `restore` says so and changes nothing.
+
+### What `check` refuses
+
+It is the guard to run before pushing, and it fails closed:
+
+| Refusal | Why it matters |
+| --- | --- |
+| Name, email or credential username is not the profile's | The commit would carry the wrong author, permanently and publicly |
+| `gh`'s active account is not the profile's | The commit is fine but the **push** goes out as the wrong account |
+| `origin` does not belong to the profile's account | Right identity, wrong destination |
+| `upstream` has a push URL other than `DISABLED` | A push could reach `dgtlmoon/changedetection.io` itself |
+| No profiles configured yet | It refuses rather than assuming the current identity is correct |
 
 ## The branch model it assumes
 
