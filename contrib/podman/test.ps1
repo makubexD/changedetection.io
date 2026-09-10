@@ -43,7 +43,8 @@ $browser     = 'cdio-smoketest-browser'
 $pod         = 'cdio-smoketest-pod'
 $volume      = 'cdio-smoketest-data'
 $image       = if ($Image) { $Image } else { "changedetection.io:$Tag" }
-$browserImage = 'docker.io/dgtlmoon/sockpuppetbrowser:latest'
+# Pinned by digest so a browser rebuild cannot turn a green smoke test red.
+$browserImage = 'docker.io/dgtlmoon/sockpuppetbrowser@sha256:a61e64a694fef3b6d375a3c7c7dd7d74b1166a48b231cd98870b78f244deef79'
 $baseUrl     = "http://localhost:$Port/"
 # In a pod both containers share a network namespace, so the app reaches Chrome
 # on localhost. On a network (podman-compose, Quadlet) it would be the hostname.

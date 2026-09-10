@@ -18,6 +18,10 @@ $image       = "changedetection.io:$Tag"
 $name        = 'changedetection'
 $browserName = 'browser-sockpuppet-chrome'
 $podName     = 'changedetection-pod'
+# Pinned by DIGEST, not :latest -- see contrib/podman/README.md. The tag is
+# rebuilt often and bakes in whatever Chrome Stable is current that day, so
+# :latest changes Chrome under you without warning.
+$browserImage = 'docker.io/dgtlmoon/sockpuppetbrowser@sha256:a61e64a694fef3b6d375a3c7c7dd7d74b1166a48b231cd98870b78f244deef79'
 
 # Replace any previous container of the same name; the named volume,
 # and therefore every watch and its history, is untouched by this.
@@ -62,7 +66,7 @@ podman run -d `
     -e SCREEN_HEIGHT=1024 `
     -e SCREEN_DEPTH=16 `
     -e MAX_CONCURRENT_CHROME_PROCESSES=10 `
-    docker.io/dgtlmoon/sockpuppetbrowser:latest
+    $browserImage
 if ($LASTEXITCODE -ne 0) { throw "podman run (browser) failed with exit code $LASTEXITCODE" }
 
 podman run -d `
