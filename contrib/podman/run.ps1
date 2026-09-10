@@ -9,6 +9,10 @@
 # Defaults to changedetection.io:<Tag>, which build.ps1 produces. Pass -Image
 # to run a published image instead and skip building altogether.
 #
+# SAFE TO RE-RUN, ALWAYS. It first clears whatever the last run left behind --
+# container, browser container and pod alike -- so re-running after a git pull,
+# or switching -WithBrowser on and off, needs no manual cleanup.
+#
 # YOUR DATA IS SAFE. This replaces the container, never the volume: every
 # watch and its history lives in the named volume changedetection-data, and
 # it is reattached to the new container. Turning -WithBrowser on or off on a
@@ -30,6 +34,39 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# The cleanup below is expected to fail when there is nothing to remove.
+# PowerShell 7.4+ turns a non-zero native exit code into a terminating error,
+# which would abort the script before it starts anything. Exit codes are checked
+# by hand instead, everywhere it matters. Same guard as test.ps1.
+if (Test-Path Variable:\PSNativeCommandUseErrorActionPreference) {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
+
+# Turns "exit code 126" into something you can act on. Only consulted when a
+# podman command has already failed, so a wrong guess here can never block a
+# start that would otherwise have worked.
+function Get-PortHolder([int]$p) {
+    if (-not (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue)) { return $null }
+    $ids = @(Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue |
+             Select-Object -ExpandProperty OwningProcess -Unique)
+    if (-not $ids) { return $null }
+    $names = @($ids |
+               ForEach-Object { (Get-Process -Id $_ -ErrorAction SilentlyContinue).ProcessName } |
+               Where-Object { $_ } | Sort-Object -Unique)
+    if ($names) { return ($names -join ', ') }
+    return 'an unidentified process'
+}
+
+function Stop-WithReason([string]$what, [int]$code, [int]$p) {
+    $holder = Get-PortHolder $p
+    if ($holder) {
+        throw ("$what failed (exit $code): port $p is already in use by $holder. " +
+               "Stop it, or start somewhere else: .\contrib\podman\run.ps1 -Port 5001")
+    }
+    throw ("$what failed with exit code $code. See what is left over with: " +
+           "podman ps -a  and  podman pod ps")
+}
+
 $image       = if ($Image) { $Image } else { "changedetection.io:$Tag" }
 $name        = 'changedetection'
 $browserName = 'browser-sockpuppet-chrome'
@@ -39,9 +76,17 @@ $podName     = 'changedetection-pod'
 # :latest changes Chrome under you without warning.
 $browserImage = 'docker.io/dgtlmoon/sockpuppetbrowser@sha256:a61e64a694fef3b6d375a3c7c7dd7d74b1166a48b231cd98870b78f244deef79'
 
-# Replace any previous container of the same name; the named volume,
-# and therefore every watch and its history, is untouched by this.
-podman rm -f $name 2>$null | Out-Null
+# Clear BOTH topologies before starting, every time. A previous run may have
+# left either one behind, and both publish $Port:
+#   plain         -> the container named $name publishes it
+#   -WithBrowser  -> the POD named $podName publishes it, via its infra container
+# Removing only the container leaves the pod still holding the port, and the
+# next plain start then dies with "address already in use" (exit 126). Clearing
+# both makes this script safe to re-run and safe to switch modes with.
+#
+# The named volume -- every watch and its history -- is untouched by any of it.
+podman rm -f $name $browserName 2>$null | Out-Null
+podman pod rm -f $podName 2>$null | Out-Null
 
 if (-not $WithBrowser) {
     podman run -d `
@@ -51,7 +96,7 @@ if (-not $WithBrowser) {
         -v changedetection-data:/datastore `
         -e "BASE_URL=http://localhost:$Port" `
         $image
-    if ($LASTEXITCODE -ne 0) { throw "podman run failed with exit code $LASTEXITCODE" }
+    if ($LASTEXITCODE -ne 0) { Stop-WithReason 'podman run' $LASTEXITCODE $Port }
 
     Write-Host "changedetection.io is starting on http://localhost:$Port"
     Write-Host "Follow the logs with: .\contrib\podman\logs.ps1"
@@ -61,13 +106,12 @@ if (-not $WithBrowser) {
 }
 
 # --- With browser: one pod, two containers -----------------------------------
-podman rm -f $browserName 2>$null | Out-Null
-podman pod rm -f $podName 2>$null | Out-Null
+# (Cleanup already happened above, for both topologies.)
 
 # The pod owns the published port; containers inside it must not publish their
 # own. Port 3000 stays internal to the pod -- only the app needs to reach it.
 podman pod create --name $podName -p "127.0.0.1:${Port}:5000" | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "podman pod create failed with exit code $LASTEXITCODE" }
+if ($LASTEXITCODE -ne 0) { Stop-WithReason 'podman pod create' $LASTEXITCODE $Port }
 
 # Chrome first, so it is accepting connections by the time a fetch happens.
 # --shm-size=2g: Podman defaults /dev/shm to 64MB and Chrome dies with
@@ -93,7 +137,7 @@ podman run -d `
     -e "BASE_URL=http://localhost:$Port" `
     -e "PLAYWRIGHT_DRIVER_URL=ws://localhost:3000" `
     $image
-if ($LASTEXITCODE -ne 0) { throw "podman run failed with exit code $LASTEXITCODE" }
+if ($LASTEXITCODE -ne 0) { Stop-WithReason 'podman run' $LASTEXITCODE $Port }
 
 Write-Host "changedetection.io is starting on http://localhost:$Port (pod: $podName)"
 Write-Host "Chrome is available -- the watch edit screen should now show"
