@@ -104,6 +104,44 @@ It is the guard to run before pushing, and it fails closed:
 | `upstream` has a push URL other than `DISABLED` | A push could reach `dgtlmoon/changedetection.io` itself |
 | No profiles configured yet | It refuses rather than assuming the current identity is correct |
 
+### Making the guard automatic
+
+`check` only protects the pushes you remember to run it before. Install the
+pre-push hook and it protects all of them, including a `git push` typed from an
+editor's UI:
+
+```powershell
+.\contrib\fork\identity.ps1 -Action install-hook
+.\contrib\fork\identity.ps1 -Action uninstall-hook
+```
+
+```
+git push  ->  pre-push hook  ->  identity.ps1 -Action check  ->  allowed / blocked
+```
+
+Worth knowing about it:
+
+- **It lives in `.git/hooks/`**, which is per-clone and never committed. That is
+  why it has to be installed on each machine rather than shipped in the repo.
+- **It does not block a push from a branch without `contrib/fork/`.** `master`
+  is a pristine mirror of upstream and has no such directory; blocking its push
+  would break `sync-fork.ps1`, which pushes `master` as step 2. `sync-fork.ps1`
+  runs the check up front instead, so that path stays covered.
+- **`git push --no-verify` bypasses it** for one push, which is the intended
+  escape hatch.
+- **It refuses to overwrite a `pre-push` hook it did not write**, and
+  `uninstall-hook` refuses to delete one.
+- It is written with LF line endings whatever this file was checked out as —
+  `sh` rejects a CRLF script with "bad interpreter".
+
+### How the pieces fit
+
+| Situation | What runs the check |
+| --- | --- |
+| `sync-fork.ps1` | Calls `identity.ps1 -Action check` itself, before anything is pushed. Refuses if the script is missing; `-SkipIdentityCheck` overrides |
+| Any `git push` | The pre-push hook, once installed |
+| Anything else | `.\contrib\fork\identity.ps1` by hand |
+
 ## The branch model it assumes
 
 | Branch | Role |
