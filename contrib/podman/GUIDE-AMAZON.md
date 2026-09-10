@@ -12,6 +12,19 @@ first check and never work at all. That is not a mistake in your setup and no
 setting reliably defeats it. Everything below is about maximising your odds, not
 guaranteeing them.
 
+### Where each setting lives on the Edit screen
+
+The edit screen is tabbed, and the two tabs you need are not the same one:
+
+| Tab | Holds |
+| --- | --- |
+| **General** | Web Page URL, Group Tag, **Processor**, Title, **Time Between Check** |
+| **Request** | **Fetch Method**, proxy, wait time |
+| **Restock & Price Detection** | appears only after Processor is set to price mode |
+| **Visual Filter Selector** | click an element on the rendered page to filter on it |
+
+A setting you cannot find is almost always on the other tab.
+
 ---
 
 ## Step 0 — Prove Chrome is actually connected
@@ -58,7 +71,8 @@ The ASIN is also on the product page under **Product details**.
 ## Step 3 — Point this watch at Chrome ← the step people miss
 
 1. Click the watch's **Edit** (pencil) icon.
-2. On the **General** tab find **Fetch Method** and select:
+2. Click the **Request** tab — **Fetch Method** lives there, not on **General**.
+   Select:
 
    > **Playwright Chromium/Javascript via 'ws://localhost:3000'**
 
@@ -66,8 +80,10 @@ The ASIN is also on the product page under **Product details**.
 
 3. Click **Save**.
 
-A watch keeps the fetcher it was created with, so until you do this it is still
-fetching raw HTML.
+A watch keeps whatever fetcher was the default **at the moment it was created**.
+`run.ps1 -WithBrowser` sets that default, so a watch added after it on a fresh
+datastore already shows the Playwright option — confirm it on the tab rather than
+assume. Anything older is still fetching raw HTML.
 
 Set it once for everything under **Settings → Fetching → Fetch Method**.
 
