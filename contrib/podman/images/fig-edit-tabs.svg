@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="220" viewBox="0 0 880 220" role="img" aria-label="The Edit screen tab strip, with General and Request called out">
+  <style>
+    .bg   { fill: #2b2f4a; }
+    .tab  { fill: #3a4570; }
+    .on   { fill: #4a5590; }
+    .t    { fill: #ffffff; font: 600 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .note { fill: #cfd6f5; font: 400 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .key  { fill: #7ee0d0; font: 700 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .call { stroke: #7ee0d0; stroke-width: 2; fill: none; }
+  </style>
+  <rect class="bg" x="0" y="0" width="880" height="220" rx="8"/>
+
+  <!-- tab strip -->
+  <g>
+    <rect class="on"  x="16"  y="16" width="70"  height="30" rx="5"/><text class="t" x="28"  y="36">General</text>
+    <rect class="on"  x="90"  y="16" width="70"  height="30" rx="5"/><text class="t" x="104" y="36">Request</text>
+    <rect class="tab" x="164" y="16" width="168" height="30" rx="5"/><text class="t" x="174" y="36">Restock &amp; Price Detection</text>
+    <rect class="tab" x="336" y="16" width="96"  height="30" rx="5"/><text class="t" x="346" y="36">Browser Steps</text>
+    <rect class="tab" x="436" y="16" width="140" height="30" rx="5"/><text class="t" x="446" y="36">Visual Filter Selector</text>
+    <rect class="tab" x="580" y="16" width="62"  height="30" rx="5"/><text class="t" x="592" y="36">AI / LLM</text>
+    <rect class="tab" x="646" y="16" width="112" height="30" rx="5"/><text class="t" x="656" y="36">Filters &amp; Triggers</text>
+    <rect class="tab" x="762" y="16" width="76"  height="30" rx="5"/><text class="t" x="772" y="36">Conditions</text>
+  </g>
+
+  <!-- callouts -->
+  <path class="call" d="M50 50 L50 74"/>
+  <path class="call" d="M124 50 L124 122"/>
+
+  <text class="key"  x="28" y="92">General</text>
+  <text class="note" x="92" y="92">Web Page URL · Group Tag · Processor · Title · Time Between Check</text>
+
+  <text class="key"  x="28" y="140">Request</text>
+  <text class="note" x="92" y="140">Fetch Method · proxy · Wait seconds before extracting text</text>
+
+  <text class="note" x="28" y="176">Restock &amp; Price Detection appears only once Processor is set to price mode.</text>
+  <text class="note" x="28" y="196">Browser Steps appears only once Fetch Method is a browser and you have saved.</text>
+</svg>

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="330" viewBox="0 0 880 330" role="img" aria-label="The three states a restock watch row can be in: a price, a No information badge, and a check still running">
+  <style>
+    .bg    { fill: #2b2f4a; }
+    .row   { fill: #3a3f5c; }
+    .head  { fill: #32374f; }
+    .t     { fill: #ffffff; font: 600 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .th    { fill: #cfd6f5; font: 700 11px system-ui, -apple-system, Segoe UI, sans-serif; letter-spacing: .06em; }
+    .url   { fill: #dfe4ff; font: 400 11px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .note  { fill: #cfd6f5; font: 400 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .key   { fill: #7ee0d0; font: 700 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .badge { font: 700 11px system-ui, -apple-system, Segoe UI, sans-serif; fill: #ffffff; }
+    .ok    { fill: #1f7a4d; }
+    .err   { fill: #b3243f; }
+    .rest  { fill: #d9534f; }
+    .wait  { fill: #4a4f6e; }
+  </style>
+  <rect class="bg" x="0" y="0" width="880" height="330" rx="8"/>
+
+  <rect class="head" x="16" y="14" width="848" height="26" rx="4"/>
+  <text class="th" x="120" y="31">WEB PAGE</text>
+  <text class="th" x="640" y="31">CHECKED</text>
+  <text class="th" x="756" y="31">CHANGED</text>
+
+  <!-- state 1: price -->
+  <rect class="row" x="16" y="48" width="848" height="44" rx="4"/>
+  <rect class="rest" x="30" y="60" width="58" height="20" rx="4"/><text class="badge" x="38" y="74">Restock</text>
+  <text class="url" x="98" y="74">https://www.tous.com/pe-es/…/p/2002462102-C.html</text>
+  <rect class="ok" x="452" y="60" width="86" height="20" rx="4"/><text class="badge" x="460" y="74">249 PEN</text>
+  <text class="t" x="640" y="75">2 hours ago</text>
+  <text class="t" x="756" y="75">2 hours ago</text>
+  <text class="key" x="30" y="110">Working.</text>
+  <text class="note" x="92" y="110">Metadata found and parsed. Set your trigger on the Restock &amp; Price Detection tab.</text>
+
+  <!-- state 2: no information -->
+  <rect class="row" x="16" y="126" width="848" height="44" rx="4"/>
+  <rect class="rest" x="30" y="138" width="58" height="20" rx="4"/><text class="badge" x="38" y="152">Restock</text>
+  <text class="url" x="98" y="152">https://www.tous.com/pe-es/…/p/2002462102-C.html</text>
+  <rect class="err" x="452" y="138" width="106" height="20" rx="4"/><text class="badge" x="460" y="152">No information</text>
+  <text class="t" x="640" y="153">2 hours ago</text>
+  <text class="t" x="756" y="153">Not yet</text>
+  <text class="key" x="30" y="188">A verdict.</text>
+  <text class="note" x="102" y="188">The check finished and the page metadata held no price and no availability.</text>
+  <text class="note" x="102" y="206">Rechecking will not change it — extract the price by hand instead.</text>
+
+  <!-- state 3: fetching -->
+  <rect class="row" x="16" y="222" width="848" height="44" rx="4"/>
+  <rect class="rest" x="30" y="234" width="58" height="20" rx="4"/><text class="badge" x="38" y="248">Restock</text>
+  <text class="url" x="98" y="248">https://www.tous.com/pe-es/…/p/2002462102-C.html</text>
+  <rect class="wait" x="452" y="234" width="86" height="20" rx="4"/><text class="badge" x="460" y="248">Fetching…</text>
+  <text class="t" x="640" y="249">—</text>
+  <text class="t" x="756" y="249">Not yet</text>
+  <text class="key" x="30" y="284">Not a verdict.</text>
+  <text class="note" x="126" y="284">The check is still running. Sidebar "Queue 0 / Checking now: 1" confirms it is</text>
+  <text class="note" x="126" y="302">not stuck behind a backlog — the site is slow, or is refusing to answer at all.</text>
+</svg>
