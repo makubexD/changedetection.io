@@ -381,6 +381,18 @@ msgstr "Время перепроверки (минуты)"
 msgid "Import"
 msgstr "Импорт"
 
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Expand on hover"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Always expanded"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Stays minimal"
+msgstr ""
+
 #: changedetectionio/blueprint/rss/single_watch.py
 #, python-format
 msgid "Watch with UUID %(uuid)s not found"
@@ -1530,16 +1542,16 @@ msgstr "Организационные теги/группы веб-сайта �
 msgid "Mute notifications"
 msgstr "Отключить уведомления"
 
-#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
-#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
-msgid "Edit"
-msgstr "Редактировать"
-
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Recheck"
 msgstr "Перепроверить"
+
+#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
+#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
+msgid "Edit"
+msgstr "Редактировать"
 
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 msgid "Delete Group?"
@@ -2039,16 +2051,16 @@ msgstr ""
 "заголовок/описание."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid "The interval/amount of time between each check."
-msgstr "Интервал/количество времени между каждой проверкой."
+msgid "Extra Page Title and Link options"
+msgstr ""
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid ""
-"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
-"your filter will not work anymore."
+msgid "Optional - links in the list, history and notifications open this URL instead. Does not change the URL being checked."
 msgstr ""
-"Отправляет уведомление, когда фильтр больше не виден на странице. Это полезно для того, чтобы узнать, когда страница "
-"изменилась и ваш фильтр больше не будет работать."
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid "The interval/amount of time between each check."
+msgstr "Интервал/количество времени между каждой проверкой."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set to empty to use system settings default"
@@ -2149,6 +2161,14 @@ msgstr "Вам нужно"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set the fetch method"
 msgstr "Установите метод выборки"
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid ""
+"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
+"your filter will not work anymore."
+msgstr ""
+"Отправляет уведомление, когда фильтр больше не виден на странице. Это полезно для того, чтобы узнать, когда страница "
+"изменилась и ваш фильтр больше не будет работать."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Use the verify (✓) button to test if a condition passes against the current snapshot."
@@ -2310,6 +2330,14 @@ msgstr "Количество оповещений об уведомлениях"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Server type reply"
 msgstr "Тип ответа сервера"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "Yes"
+msgstr "Да"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "No"
+msgstr "Нет"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "AI tokens (last check)"
@@ -2628,16 +2656,18 @@ msgstr ""
 msgid "Currently high"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "cheaper than %s% of tracked prices"
+#, python-brace-format
+msgid "cheaper than {pct} of tracked prices"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "more expensive than %s% of tracked prices"
+#, python-brace-format
+msgid "more expensive than {pct} of tracked prices"
 msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -3299,6 +3329,10 @@ msgid "Web Page URL"
 msgstr "URL-адрес веб-страницы"
 
 #: changedetectionio/forms.py
+msgid "Open Link Override"
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Group Tag"
 msgstr "Групповой тег"
 
@@ -3569,14 +3603,6 @@ msgstr ""
 
 #: changedetectionio/forms.py
 msgid "Navigation sidebar"
-msgstr ""
-
-#: changedetectionio/forms.py
-msgid "Collapsed icon rail (expands on hover)"
-msgstr ""
-
-#: changedetectionio/forms.py
-msgid "Always expanded"
 msgstr ""
 
 #: changedetectionio/forms.py
@@ -4129,6 +4155,12 @@ msgstr "URL-адрес запущенного вами экземпляраchang
 #: changedetectionio/templates/_common_fields.html
 msgid "The URL being watched."
 msgstr "URL-адрес, который просматривается."
+
+#: changedetectionio/templates/_common_fields.html
+msgid ""
+"The Open Link Override set on the watch, otherwise the same as watch_url. Use this when the watched URL is an API "
+"endpoint or RSS feed but you want to link to the real page."
+msgstr ""
 
 #: changedetectionio/templates/_common_fields.html
 msgid "The UUID of the watch."
@@ -5114,14 +5146,6 @@ msgstr ""
 "Базовый URL-адрес API преобразуется в частный IP-адрес, адрес обратной связи, локальный или зарезервированный "
 "IP-адрес и был заблокирован для предотвращения SSRF. Чтобы разрешить конечным точкам LLM в частных сетях (например, "
 "на локальном сервере Ollama), установите переменную среды ALLOW_IANA_RESTRICTED_ADDRESSES=true и перезапустите."
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "Yes"
-msgstr "Да"
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "No"
-msgstr "Нет"
 
 #: changedetectionio/widgets/ternary_boolean.py
 msgid "Main settings"

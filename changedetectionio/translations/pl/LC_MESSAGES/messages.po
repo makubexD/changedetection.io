@@ -384,6 +384,18 @@ msgstr "Czas ponownej kontroli (w minutach)"
 msgid "Import"
 msgstr "Importuj"
 
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Expand on hover"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Always expanded"
+msgstr "Zawsze rozwinięte"
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Stays minimal"
+msgstr ""
+
 #: changedetectionio/blueprint/rss/single_watch.py
 #, python-format
 msgid "Watch with UUID %(uuid)s not found"
@@ -1564,16 +1576,16 @@ msgstr "Nie skonfigurowano żadnych tagów/grup organizacyjnych dla tej witryny"
 msgid "Mute notifications"
 msgstr "Wyłącz powiadomienia"
 
-#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
-#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
-msgid "Edit"
-msgstr "Edytuj"
-
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Recheck"
 msgstr "Sprawdź ponownie"
+
+#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
+#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
+msgid "Edit"
+msgstr "Edytuj"
 
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 msgid "Delete Group?"
@@ -2077,16 +2089,16 @@ msgid "Automatically uses the page title if found, you can also use your own tit
 msgstr "Jeśli tytuł strony zostanie znaleziony, zostanie on automatycznie użyty; można tu również wpisać własny tytuł/opis"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid "The interval/amount of time between each check."
-msgstr "Odstęp czasowy między kolejnymi sprawdzeniami."
+msgid "Extra Page Title and Link options"
+msgstr ""
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid ""
-"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
-"your filter will not work anymore."
+msgid "Optional - links in the list, history and notifications open this URL instead. Does not change the URL being checked."
 msgstr ""
-"Wysyła powiadomienie, gdy filtr przestaje być widoczny na stronie; przydaje się to do stwierdzenia, kiedy strona "
-"uległa zmianie i filtr przestanie działać."
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid "The interval/amount of time between each check."
+msgstr "Odstęp czasowy między kolejnymi sprawdzeniami."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set to empty to use system settings default"
@@ -2189,6 +2201,14 @@ msgstr "Musisz"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set the fetch method"
 msgstr "Ustaw metodę pobierania"
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid ""
+"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
+"your filter will not work anymore."
+msgstr ""
+"Wysyła powiadomienie, gdy filtr przestaje być widoczny na stronie; przydaje się to do stwierdzenia, kiedy strona "
+"uległa zmianie i filtr przestanie działać."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Use the verify (✓) button to test if a condition passes against the current snapshot."
@@ -2351,6 +2371,14 @@ msgstr "Liczba powiadomień"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Server type reply"
 msgstr "Odpowiedź dotycząca typu serwera"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "Yes"
+msgstr "Tak"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "No"
+msgstr "Nie"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "AI tokens (last check)"
@@ -2669,16 +2697,18 @@ msgstr "Obecnie typowe"
 msgid "Currently high"
 msgstr "Obecnie wysoki"
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "cheaper than %s% of tracked prices"
+#, python-brace-format
+msgid "cheaper than {pct} of tracked prices"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "more expensive than %s% of tracked prices"
+#, python-brace-format
+msgid "more expensive than {pct} of tracked prices"
 msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -3340,6 +3370,10 @@ msgid "Web Page URL"
 msgstr "Adres URL strony internetowej"
 
 #: changedetectionio/forms.py
+msgid "Open Link Override"
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Group Tag"
 msgstr "Etykieta grupy"
 
@@ -3611,14 +3645,6 @@ msgstr "Krótki (1 minuta temu)"
 #: changedetectionio/forms.py
 msgid "Navigation sidebar"
 msgstr "Pasek nawigacyjny"
-
-#: changedetectionio/forms.py
-msgid "Collapsed icon rail (expands on hover)"
-msgstr "Zwiń pasek ikon (rozwija się po najechaniu kursorem)"
-
-#: changedetectionio/forms.py
-msgid "Always expanded"
-msgstr "Zawsze rozwinięte"
 
 #: changedetectionio/forms.py
 msgid "API access token security check enabled"
@@ -4172,6 +4198,12 @@ msgstr "Adres URL instancji serwisu changedetection.io, którą uruchomiłeś."
 #: changedetectionio/templates/_common_fields.html
 msgid "The URL being watched."
 msgstr "Obserwowany adres URL."
+
+#: changedetectionio/templates/_common_fields.html
+msgid ""
+"The Open Link Override set on the watch, otherwise the same as watch_url. Use this when the watched URL is an API "
+"endpoint or RSS feed but you want to link to the real page."
+msgstr ""
 
 #: changedetectionio/templates/_common_fields.html
 msgid "The UUID of the watch."
@@ -5178,14 +5210,6 @@ msgstr ""
 "Adres bazowy API prowadzi do prywatnego, pętlowego, lokalnego lub zarezerwowanego adresu IP i został zablokowany w "
 "celu zapobieżenia atakom SSRF. Aby zezwolić na punkty końcowe LLM w sieciach prywatnych (np. lokalny serwer Ollama), "
 "należy ustawić zmienną środowiskową ALLOW_IANA_RESTRICTED_ADDRESSES=true i ponownie uruchomić system."
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "Yes"
-msgstr "Tak"
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "No"
-msgstr "Nie"
 
 #: changedetectionio/widgets/ternary_boolean.py
 msgid "Main settings"

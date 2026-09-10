@@ -378,6 +378,18 @@ msgstr "再チェック時間（分）"
 msgid "Import"
 msgstr "インポート"
 
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Expand on hover"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Always expanded"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Stays minimal"
+msgstr ""
+
 #: changedetectionio/blueprint/rss/single_watch.py
 #, python-format
 msgid "Watch with UUID %(uuid)s not found"
@@ -1444,16 +1456,16 @@ msgstr "ウェブサイトの組織タグ/グループが設定されていま�
 msgid "Mute notifications"
 msgstr "通知をミュート"
 
-#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
-#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
-msgid "Edit"
-msgstr "編集"
-
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Recheck"
 msgstr "再チェック"
+
+#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
+#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
+msgid "Edit"
+msgstr "編集"
 
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 msgid "Delete Group?"
@@ -1952,14 +1964,16 @@ msgid "Automatically uses the page title if found, you can also use your own tit
 msgstr "ページタイトルが見つかった場合は自動的に使用されます。ここで独自のタイトル/説明を使用することもできます。"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid "The interval/amount of time between each check."
-msgstr "各チェック間の間隔/時間。"
+msgid "Extra Page Title and Link options"
+msgstr ""
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid ""
-"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
-"your filter will not work anymore."
-msgstr "フィルタがページで見つからなくなったときに通知を送信します。ページが変更されてフィルタが機能しなくなったことを把握するのに便利です。"
+msgid "Optional - links in the list, history and notifications open this URL instead. Does not change the URL being checked."
+msgstr ""
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid "The interval/amount of time between each check."
+msgstr "各チェック間の間隔/時間。"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set to empty to use system settings default"
@@ -2058,6 +2072,12 @@ msgstr "次の操作が必要です："
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set the fetch method"
 msgstr "取得方式を設定する"
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid ""
+"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
+"your filter will not work anymore."
+msgstr "フィルタがページで見つからなくなったときに通知を送信します。ページが変更されてフィルタが機能しなくなったことを把握するのに便利です。"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Use the verify (✓) button to test if a condition passes against the current snapshot."
@@ -2217,6 +2237,14 @@ msgstr "通知アラート回数"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Server type reply"
 msgstr "サーバーの応答タイプ"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "Yes"
+msgstr "はい"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "No"
+msgstr "いいえ"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "AI tokens (last check)"
@@ -2533,16 +2561,18 @@ msgstr ""
 msgid "Currently high"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "cheaper than %s% of tracked prices"
+#, python-brace-format
+msgid "cheaper than {pct} of tracked prices"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "more expensive than %s% of tracked prices"
+#, python-brace-format
+msgid "more expensive than {pct} of tracked prices"
 msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -3200,6 +3230,10 @@ msgid "Web Page URL"
 msgstr "ウェブページ URL"
 
 #: changedetectionio/forms.py
+msgid "Open Link Override"
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Group Tag"
 msgstr "グループタグ"
 
@@ -3470,14 +3504,6 @@ msgstr ""
 
 #: changedetectionio/forms.py
 msgid "Navigation sidebar"
-msgstr ""
-
-#: changedetectionio/forms.py
-msgid "Collapsed icon rail (expands on hover)"
-msgstr ""
-
-#: changedetectionio/forms.py
-msgid "Always expanded"
 msgstr ""
 
 #: changedetectionio/forms.py
@@ -4030,6 +4056,12 @@ msgstr "実行中の changedetection.io インスタンスのURL。"
 #: changedetectionio/templates/_common_fields.html
 msgid "The URL being watched."
 msgstr "監視中のURL。"
+
+#: changedetectionio/templates/_common_fields.html
+msgid ""
+"The Open Link Override set on the watch, otherwise the same as watch_url. Use this when the watched URL is an API "
+"endpoint or RSS feed but you want to link to the real page."
+msgstr ""
 
 #: changedetectionio/templates/_common_fields.html
 msgid "The UUID of the watch."
@@ -4993,14 +5025,6 @@ msgid ""
 "allow LLM endpoints on private networks (e.g. a local Ollama server) set the environment variable "
 "ALLOW_IANA_RESTRICTED_ADDRESSES=true and restart."
 msgstr ""
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "Yes"
-msgstr "はい"
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "No"
-msgstr "いいえ"
 
 #: changedetectionio/widgets/ternary_boolean.py
 msgid "Main settings"

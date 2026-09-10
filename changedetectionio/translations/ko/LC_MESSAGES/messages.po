@@ -376,6 +376,18 @@ msgstr "재확인 시간(분)"
 msgid "Import"
 msgstr "가져오기"
 
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Expand on hover"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Always expanded"
+msgstr ""
+
+#: changedetectionio/blueprint/menu_modes.py
+msgid "Stays minimal"
+msgstr ""
+
 #: changedetectionio/blueprint/rss/single_watch.py
 #, python-format
 msgid "Watch with UUID %(uuid)s not found"
@@ -1446,16 +1458,16 @@ msgstr "구성된 그룹/태그 없음"
 msgid "Mute notifications"
 msgstr "알림 음소거"
 
-#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
-#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
-msgid "Edit"
-msgstr "편집"
-
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Recheck"
 msgstr "재확인"
+
+#: changedetectionio/blueprint/tags/templates/groups-overview.html changedetectionio/blueprint/ui/edit.py
+#: changedetectionio/blueprint/watchlist/templates/watch-overview-single-row.html
+msgid "Edit"
+msgstr "편집"
 
 #: changedetectionio/blueprint/tags/templates/groups-overview.html
 msgid "Delete Group?"
@@ -1951,14 +1963,16 @@ msgid "Automatically uses the page title if found, you can also use your own tit
 msgstr "페이지 제목을 찾으면 자동으로 사용하며, 여기에서 직접 제목/설명을 입력할 수도 있습니다."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid "The interval/amount of time between each check."
-msgstr "각 확인 사이의 간격/시간입니다."
+msgid "Extra Page Title and Link options"
+msgstr ""
 
 #: changedetectionio/blueprint/ui/templates/edit.html
-msgid ""
-"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
-"your filter will not work anymore."
-msgstr "필터가 페이지에 더 이상 보이지 않을 때 알림을 보냅니다. 페이지가 바뀌어 필터가 더 이상 동작하지 않는 상황을 파악하는 데 유용합니다."
+msgid "Optional - links in the list, history and notifications open this URL instead. Does not change the URL being checked."
+msgstr ""
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid "The interval/amount of time between each check."
+msgstr "각 확인 사이의 간격/시간입니다."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set to empty to use system settings default"
@@ -2057,6 +2071,12 @@ msgstr "먼저"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Set the fetch method"
 msgstr "가져오기 방식을"
+
+#: changedetectionio/blueprint/ui/templates/edit.html
+msgid ""
+"Sends a notification when the filter can no longer be seen on the page, good for knowing when the page changed and "
+"your filter will not work anymore."
+msgstr "필터가 페이지에 더 이상 보이지 않을 때 알림을 보냅니다. 페이지가 바뀌어 필터가 더 이상 동작하지 않는 상황을 파악하는 데 유용합니다."
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Use the verify (✓) button to test if a condition passes against the current snapshot."
@@ -2208,6 +2228,14 @@ msgstr "알림 경고 수"
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "Server type reply"
 msgstr "서버 유형 응답"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "Yes"
+msgstr "예"
+
+#: changedetectionio/blueprint/ui/templates/edit.html changedetectionio/widgets/ternary_boolean.py
+msgid "No"
+msgstr "아니오"
 
 #: changedetectionio/blueprint/ui/templates/edit.html
 msgid "AI tokens (last check)"
@@ -2524,16 +2552,18 @@ msgstr ""
 msgid "Currently high"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "cheaper than %s% of tracked prices"
+#, python-brace-format
+msgid "cheaper than {pct} of tracked prices"
 msgstr ""
 
+#. {pct} is a percentage including the % sign, e.g. "80%"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-#, python-format
-msgid "more expensive than %s% of tracked prices"
+#, python-brace-format
+msgid "more expensive than {pct} of tracked prices"
 msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -3191,6 +3221,10 @@ msgid "Web Page URL"
 msgstr "웹페이지 URL"
 
 #: changedetectionio/forms.py
+msgid "Open Link Override"
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Group Tag"
 msgstr "그룹 태그"
 
@@ -3461,14 +3495,6 @@ msgstr ""
 
 #: changedetectionio/forms.py
 msgid "Navigation sidebar"
-msgstr ""
-
-#: changedetectionio/forms.py
-msgid "Collapsed icon rail (expands on hover)"
-msgstr ""
-
-#: changedetectionio/forms.py
-msgid "Always expanded"
 msgstr ""
 
 #: changedetectionio/forms.py
@@ -4021,6 +4047,12 @@ msgstr "현재 사용 중인 changedetection.io 인스턴스의 URL입니다."
 #: changedetectionio/templates/_common_fields.html
 msgid "The URL being watched."
 msgstr "모니터링 중인 URL입니다."
+
+#: changedetectionio/templates/_common_fields.html
+msgid ""
+"The Open Link Override set on the watch, otherwise the same as watch_url. Use this when the watched URL is an API "
+"endpoint or RSS feed but you want to link to the real page."
+msgstr ""
 
 #: changedetectionio/templates/_common_fields.html
 msgid "The UUID of the watch."
@@ -4970,14 +5002,6 @@ msgid ""
 "allow LLM endpoints on private networks (e.g. a local Ollama server) set the environment variable "
 "ALLOW_IANA_RESTRICTED_ADDRESSES=true and restart."
 msgstr ""
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "Yes"
-msgstr "예"
-
-#: changedetectionio/widgets/ternary_boolean.py
-msgid "No"
-msgstr "아니오"
 
 #: changedetectionio/widgets/ternary_boolean.py
 msgid "Main settings"
