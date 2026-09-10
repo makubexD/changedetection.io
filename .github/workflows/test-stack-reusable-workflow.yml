@@ -124,42 +124,7 @@ jobs:
       - name: Test built container with Pytest
         run: |
           docker network inspect changedet-network >/dev/null 2>&1 || docker network create changedet-network
-
-          # FORK-LOCAL CHANGE (not upstream): bounded retry around the basic
-          # test suite.
-          #
-          # This job fails intermittently on identical commits. Observed on
-          # e2b2615: the run failed, was re-run with no code change, and passed.
-          # It had failed once before on main and passed twice afterwards on the
-          # same application code.
-          #
-          # The suite reaches the network -- test_errorhandling.py::test_DNS_errors
-          # resolves a deliberately non-existent domain and asserts on the
-          # resolver's error text, and something in the set also dials the
-          # selenium fetcher's default host browser-chrome:4444, which this job
-          # never starts. Both depend on runner DNS behaviour we do not control.
-          #
-          # The assertions are not changed: guessing at a root cause that cannot
-          # be reproduced would be worse than retrying. A genuinely broken test
-          # still fails three times and still fails the job; only a flake is
-          # absorbed.
-          attempts=3
-          for attempt in $(seq 1 $attempts); do
-            echo "::group::basic tests attempt $attempt/$attempts"
-            docker rm -f test-cdio-basic-tests >/dev/null 2>&1 || true
-            if docker run --name test-cdio-basic-tests --network changedet-network test-changedetectionio bash -c 'cd changedetectionio && ./run_basic_tests.sh'; then
-              echo "::endgroup::"
-              echo "basic tests passed on attempt $attempt of $attempts"
-              exit 0
-            fi
-            echo "::endgroup::"
-            echo "attempt $attempt failed"
-            # Written as an if, not `[ ... ] && sleep`: the latter returns 1 on
-            # the final attempt, and GitHub runs these steps under bash -e.
-            if [ "$attempt" -lt "$attempts" ]; then sleep 5; fi
-          done
-          echo "basic tests still failing after $attempts attempts - treating as a real failure"
-          exit 1
+          docker run --name test-cdio-basic-tests --network changedet-network test-changedetectionio bash -c 'cd changedetectionio && ./run_basic_tests.sh'
 
       - name: Test CLI options
         run: |
