@@ -25,6 +25,13 @@ The edit screen is tabbed, and the two tabs you need are not the same one:
 
 A setting you cannot find is almost always on the other tab.
 
+![The Edit screen tab strip, with General and Request called out](images/fig-edit-tabs.svg)
+
+> The figures here are drawn from a real session on this build (`v0.60.3`) —
+> same labels, same order. They are diagrams rather than captured screenshots,
+> so they read correctly in both GitHub themes and can be diffed when the UI
+> moves.
+
 ---
 
 ## Step 0 — Prove Chrome is actually connected
@@ -72,11 +79,18 @@ The ASIN is also on the product page under **Product details**.
 
 1. Click the watch's **Edit** (pencil) icon.
 2. Click the **Request** tab — **Fetch Method** lives there, not on **General**.
-   Select:
+   There are **three** radios; take the middle one:
 
-   > **Playwright Chromium/Javascript via 'ws://localhost:3000'**
+   | Option | Take it? |
+   | --- | --- |
+   | `Basic fast Plaintext/HTTP Client` | no |
+   | `Playwright Chromium/Javascript via 'ws://localhost:3000'` | **yes** |
+   | `System settings default` | only if you would rather every watch follow **Settings → Fetching** |
 
-   Only seeing **WebDriver Chrome/Javascript**? The app has no driver URL — Step 0.
+   ![The Request tab, with the Playwright option selected among the three Fetch Method radios](images/fig-fetch-method.svg)
+
+   Middle option reads **WebDriver Chrome/Javascript** with no URL after it? The
+   app has no driver URL — Step 0.
 
 3. Click **Save**.
 
@@ -111,17 +125,30 @@ the cheapest signals for them to block.
 
 2. **Save.**
 
+   ![The General tab, with Re-stock and Price detection selected under Processor](images/fig-processor.svg)
+
 Amazon product pages usually carry clean structured data, so this often picks up
 price and stock with no filter at all. Try it before reaching for the Visual
 Filter Selector.
 
 ## Step 6 — Confirm it can read the price
 
-Click **Recheck**, wait, and look at the row. **A price appearing on the row is
-the success signal.**
+Click **Recheck**, wait, and look at the row. The row reports one of three
+outcomes, and they need different fixes:
 
-Blank? Go to [When no price appears](#when-no-price-appears).
-`403`/`503`/CAPTCHA? Go to [When Amazon blocks you](#when-amazon-blocks-you).
+![The three states a restock watch row can be in: a price, a No information badge, and a check still running](images/fig-watch-row.svg)
+
+| The row shows | Meaning | Go to |
+| --- | --- | --- |
+| A price | Working | Step 7 |
+| Red **`No information`** | The check finished; the page metadata had no price and no availability | [When no price appears](#when-no-price-appears) |
+| **`Fetching…`** that never resolves | The check is still running — Amazon is not answering | [When Amazon blocks you](#when-amazon-blocks-you) |
+| `403` / `503` / a CAPTCHA in the preview | Blocked outright | [When Amazon blocks you](#when-amazon-blocks-you) |
+
+**`No information` is a finished answer, not a "not yet".** The price mode never
+reads the visible price — it parses `<script type="application/ld+json">`,
+microdata `itemprop` attributes and OpenGraph `product:price:amount`. Rechecking
+cannot add data that is not there.
 
 ## Step 7 — Set your trigger
 
@@ -179,8 +206,26 @@ the preview text.
 
 ## When Amazon blocks you
 
-Symptoms: `503`, a CAPTCHA page in the preview, or a page that renders with no
-price at all.
+Symptoms: `503`, a CAPTCHA page in the preview, a page that renders with no
+price at all — or a row that sits on **`Fetching…`** and never finishes.
+
+That last one deserves its own note, because it does not look like a block. The
+harsher defences do not send an error at all; they accept the connection and
+then never answer, so the fetch runs until it times out and the row simply never
+resolves. There is no status code for the app to report. Confirm it from outside
+the app:
+
+```powershell
+curl.exe -sS -m 30 -o NUL -w "%{http_code} in %{time_total}s`n" `
+  -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36" `
+  "https://www.amazon.com/dp/B0XXXXXXXX"
+```
+
+`000` after the full 30 seconds, or `Connection was reset`, is the site refusing
+you. A clean `200` means the problem is inside the app instead — read
+`.\contrib\podman\logs.ps1 -Tail 80`. Note this can depend on where the request
+comes from: a residential connection is often served normally while a datacenter
+or VPN address is not, so the same watch can behave differently on two machines.
 
 In order of what actually helps:
 
@@ -216,6 +261,8 @@ a shopping session you are actively running, nothing more.
 | What you see | What it means |
 | --- | --- |
 | No **Playwright** option in Fetch Method | The app has no driver URL → Step 0 |
+| Row says **`No information`** | The metadata has no price → *When no price appears*. Rechecking will not help |
+| Row sits on **`Fetching…`** and never finishes | Amazon is accepting the connection and never answering → *When Amazon blocks you* |
 | Price blank, page renders fine | No structured data → *When no price appears* |
 | `503` / CAPTCHA / empty page | *When Amazon blocks you* |
 | Watch stuck on "Checking" | Chrome wedged: `.\contrib\podman\logs.ps1 -Browser` |

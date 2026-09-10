@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="250" viewBox="0 0 880 250" role="img" aria-label="The General tab showing the Processor radio options, with price detection selected">
+  <style>
+    .bg    { fill: #2b2f4a; }
+    .panel { fill: #3a3f5c; }
+    .field { fill: #4a4f6e; }
+    .tab   { fill: #3a4570; }
+    .on    { fill: #4a5590; }
+    .t     { fill: #ffffff; font: 600 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .h     { fill: #ffffff; font: 700 14px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .opt   { fill: #ffffff; font: 600 13px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .val   { fill: #dfe4ff; font: 400 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .note  { fill: #cfd6f5; font: 400 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .key   { fill: #7ee0d0; font: 700 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .ring  { fill: none; stroke: #ffffff; stroke-width: 2; }
+    .ringOn{ fill: none; stroke: #3b82f6; stroke-width: 2; }
+    .dot   { fill: #3b82f6; }
+    .call  { stroke: #7ee0d0; stroke-width: 2; fill: none; }
+  </style>
+  <rect class="bg" x="0" y="0" width="880" height="250" rx="8"/>
+
+  <rect class="on"  x="16" y="14" width="70" height="28" rx="5"/><text class="t" x="28"  y="33">General</text>
+  <rect class="tab" x="90" y="14" width="70" height="28" rx="5"/><text class="t" x="104" y="33">Request</text>
+
+  <rect class="panel" x="16" y="50" width="848" height="184" rx="6"/>
+
+  <text class="h" x="36" y="76">Web Page URL</text>
+  <rect class="field" x="36" y="86" width="640" height="26" rx="4"/>
+  <text class="val" x="46" y="104">https://www.tous.com/pe-es/…/p/2002462102-C.html</text>
+
+  <text class="h" x="36" y="142">Processor - What do you want to achieve?</text>
+
+  <circle class="ring" cx="52" cy="166" r="7"/>
+  <text class="opt" x="72" y="171">Webpage Text/HTML, JSON and PDF changes</text>
+
+  <circle class="ringOn" cx="52" cy="196" r="7"/><circle class="dot" cx="52" cy="196" r="3.5"/>
+  <text class="opt" x="72" y="201">Re-stock &amp; Price detection for pages with a SINGLE product</text>
+
+  <path class="call" d="M474 196 L556 196"/>
+  <text class="key" x="566" y="192">pick this one</text>
+  <text class="note" x="566" y="210">then Save — the Restock</text>
+  <text class="note" x="566" y="226">tab appears afterwards</text>
+</svg>

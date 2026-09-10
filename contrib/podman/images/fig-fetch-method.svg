@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="300" viewBox="0 0 880 300" role="img" aria-label="The Request tab showing the three Fetch Method radio options, with the Playwright option selected">
+  <style>
+    .bg    { fill: #2b2f4a; }
+    .panel { fill: #3a3f5c; }
+    .tab   { fill: #3a4570; }
+    .on    { fill: #4a5590; }
+    .t     { fill: #ffffff; font: 600 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .h     { fill: #ffffff; font: 700 14px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .opt   { fill: #ffffff; font: 600 13px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .note  { fill: #cfd6f5; font: 400 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .key   { fill: #7ee0d0; font: 700 12px system-ui, -apple-system, Segoe UI, sans-serif; }
+    .ring  { fill: none; stroke: #ffffff; stroke-width: 2; }
+    .ringOn{ fill: none; stroke: #3b82f6; stroke-width: 2; }
+    .dot   { fill: #3b82f6; }
+    .call  { stroke: #7ee0d0; stroke-width: 2; fill: none; }
+  </style>
+  <rect class="bg" x="0" y="0" width="880" height="300" rx="8"/>
+
+  <rect class="tab" x="16" y="14" width="70" height="28" rx="5"/><text class="t" x="28"  y="33">General</text>
+  <rect class="on"  x="90" y="14" width="70" height="28" rx="5"/><text class="t" x="104" y="33">Request</text>
+  <rect class="tab" x="164" y="14" width="168" height="28" rx="5"/><text class="t" x="174" y="33">Restock &amp; Price Detection</text>
+
+  <rect class="panel" x="16" y="50" width="848" height="196" rx="6"/>
+
+  <text class="h" x="36" y="78">Fetch Method</text>
+
+  <circle class="ring" cx="60" cy="104" r="7"/>
+  <text class="opt" x="80" y="109">Basic fast Plaintext/HTTP Client</text>
+
+  <circle class="ringOn" cx="60" cy="136" r="7"/><circle class="dot" cx="60" cy="136" r="3.5"/>
+  <text class="opt" x="80" y="141">Playwright Chromium/Javascript via 'ws://localhost:3000'</text>
+
+  <circle class="ring" cx="60" cy="168" r="7"/>
+  <text class="opt" x="80" y="173">System settings default</text>
+
+  <path class="call" d="M556 136 L640 136"/>
+  <text class="key"  x="650" y="132">pick this one</text>
+  <text class="note" x="650" y="150">the URL proves Chrome</text>
+  <text class="note" x="650" y="166">is actually connected</text>
+
+  <text class="note" x="36" y="206">If the middle option reads "WebDriver Chrome/Javascript" with no URL after it, the app never got</text>
+  <text class="note" x="36" y="224">PLAYWRIGHT_DRIVER_URL and fell back to Selenium. "System settings default" is not a fetcher — it</text>
+  <text class="note" x="36" y="242">defers to Settings → Fetching → Fetch Method.</text>
+
+  <text class="note" x="36" y="276">Then press Save. Nothing takes effect until you do.</text>
+</svg>

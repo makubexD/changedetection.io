@@ -48,10 +48,23 @@ nothing below will work.
 **Fetch Method** options. (**Request**, not **General** — **General** carries the
 URL, Processor and interval only.) The label tells you what the app actually connected to:
 
-| Label you see | What it means |
+There are **three** radio options, always. The middle one is the one that
+answers the question:
+
+| Option | What it means |
 | --- | --- |
-| `Playwright Chromium/Javascript via 'ws://localhost:3000'` | Chrome is wired up ✅ |
-| `WebDriver Chrome/Javascript` | No `PLAYWRIGHT_DRIVER_URL` — the app fell back to Selenium ❌ |
+| `Basic fast Plaintext/HTTP Client` | Raw HTTP, no browser. The default, and useless for a JS-rendered price |
+| `Playwright Chromium/Javascript via 'ws://localhost:3000'` | Chrome is wired up ✅ — pick this one |
+| `System settings default` | Follow **Settings → Fetching → Fetch Method** instead of deciding per watch |
+
+If the middle option instead reads `WebDriver Chrome/Javascript`, with no URL
+after it, the app never received `PLAYWRIGHT_DRIVER_URL` and fell back to
+Selenium ❌.
+
+`System settings default` is not a fourth fetcher — it is a deferral, stored as
+`system` and resolved at fetch time. It is the better choice when you want every
+watch to follow one global setting; pick the explicit Playwright option when you
+want this watch pinned to Chrome no matter what the global default becomes.
 
 The URL in that label matches your topology: `ws://localhost:3000` for
 `run.ps1 -WithBrowser` and `podman kube play`, `ws://browser-sockpuppet-chrome:3000`
@@ -107,6 +120,36 @@ page, the watch row offers *"Switch to Restock & Price watch mode?"* with a Yes
 button. Accepting does steps 2–3 for you.
 
 ## 3. When the price is not detected automatically
+
+### Read the badge first — it says which failure you have
+
+The price mode never reads the *visible* price. It parses the page's structured
+product data: `<script type="application/ld+json">`, microdata `itemprop`
+attributes, and OpenGraph `product:price:amount`. Whether the price is on screen
+is irrelevant; whether it is in that metadata is the whole game.
+
+So a restock watch that is not showing a price is in one of three states, and
+the badge on the watch row tells you which:
+
+| On the row | What actually happened | Where to go |
+| --- | --- | --- |
+| A price, e.g. `249 PEN` | Metadata found and parsed | nothing to fix |
+| Red **`No information`** | The check completed, but neither price nor availability was in the metadata | the manual route below |
+| An error banner instead of a badge | The check itself failed — timeout, `403`, CAPTCHA, browser unreachable | section 7, not this section |
+
+`No information` is precise: it means the watch has never stored an
+availability value. It is not "still loading" and not "the price is zero" — the
+extractor ran and came back empty. No amount of waiting or rechecking changes
+that, because the data is not on the page in a form the extractor reads.
+
+A row stuck on **`Fetching…`** with `Not yet` under CHANGED is a different thing
+again and is not a verdict at all: the check is *in progress*. Check the left
+sidebar — **Queue 0 / Checking now: 1** means the fetch is running right now, so
+the site is being slow or is refusing to answer. Some retailers accept a browser
+from a residential IP and silently never respond to anything else, in which case
+the fetch runs until it times out and the row never leaves `Fetching…`.
+
+### The manual route
 
 Some shops publish no structured data, or bury the price in a script. Extract it
 manually instead:
@@ -190,6 +233,8 @@ the global default applies to everything otherwise.
 | Symptom | Likely cause and fix |
 | --- | --- |
 | Price column empty, no error | No structured data on the page → section 3 (Visual Filter Selector + `extracted_number`). |
+| Red **`No information`** badge on the row | The extractor ran and found neither price nor availability in the page metadata → section 3. |
+| Row stuck on `Fetching…`, sidebar shows `Checking now: 1` | Not stuck in a queue — the fetch is running and the site is not answering. See section 7's last row and the timeout test below. |
 | Price empty **and** the page looks unrendered in Preview | Watch is still on the basic fetcher. Set **Fetch method** to Chrome; confirm Browser Steps is visible (section 1). |
 | No **Browser Steps** tab at all | **Most likely: this watch is not on the Playwright fetcher.** That tab follows the watch's own Fetch Method, not whether a browser exists. Edit → Request → select the Playwright option → Save → re-open. |
 | Fetch Method says `WebDriver Chrome/Javascript`, never Playwright | The app has no `PLAYWRIGHT_DRIVER_URL`, so it fell back to Selenium. Check with `podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'`. Pods use `ws://localhost:3000`, compose/Quadlet use `ws://browser-sockpuppet-chrome:3000` — they are not interchangeable. |
@@ -198,6 +243,8 @@ the global default applies to everything otherwise.
 | Chrome errors: "Target closed", renderer crashes | `/dev/shm` too small. `--shm-size=2g` (run.ps1 sets this), `shm_size: 2gb` in compose, the `dshm` emptyDir in the kube manifest. |
 | Notifications on every check, price unchanged | Set **Threshold (%)** to 1–2. Whitespace or a rotating banner inside your filter also does this — tighten the selector. |
 | `403` / `503` / CAPTCHA | The site is blocking automated access. Increase the interval first. Some sites will not be watchable at all. |
+| No response at all — the fetch hangs until it times out | Harsher than a `403`: some WAFs simply never answer a client they distrust, so there is no status code to read. Test it from outside the app: `curl -sS -m 30 -o /dev/null -w '%{http_code} %{time_total}s
+' -A 'Mozilla/5.0' '<the product URL>'`. A reset connection or 30s with no bytes means the site, not your setup. |
 | Price detected but wrong (e.g. 10x) | Currency/decimal separator ambiguity, or you captured a "was" price. Check the Preview text and tighten the filter to the current price element. |
 
 ---
