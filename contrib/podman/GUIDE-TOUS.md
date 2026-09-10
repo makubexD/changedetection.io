@@ -6,6 +6,19 @@ below is quoted exactly as the application shows it.
 > The technique in general is in [PRICE-TRACKING.md](PRICE-TRACKING.md).
 > Amazon is in [GUIDE-AMAZON.md](GUIDE-AMAZON.md). This file is only TOUS.
 
+### Where each setting lives on the Edit screen
+
+The edit screen is tabbed, and the two tabs you need are not the same one:
+
+| Tab | Holds |
+| --- | --- |
+| **General** | Web Page URL, Group Tag, **Processor**, Title, **Time Between Check** |
+| **Request** | **Fetch Method**, proxy, wait time |
+| **Restock & Price Detection** | appears only after Processor is set to price mode |
+| **Visual Filter Selector** | click an element on the rendered page to filter on it |
+
+A setting you cannot find is almost always on the other tab.
+
 ---
 
 ## Step 0 — Prove Chrome is actually connected
@@ -57,8 +70,10 @@ The watch appears in the list. Ignore whatever it says for now.
 ## Step 3 — Point this watch at Chrome ← the step people miss
 
 1. Click the watch's **Edit** (pencil) icon.
-2. Stay on the **General** tab.
-3. Find **Fetch Method**. Select:
+2. Click the **Request** tab. **Fetch Method** is there, not on **General**.
+   (The *use the Chrome/WebDriver Fetcher* link under the URL box is not a
+   shortcut to it — it opens the upstream wiki in a new page.)
+3. Under **Fetch Method**, select:
 
    > **Playwright Chromium/Javascript via 'ws://localhost:3000'**
 
@@ -67,8 +82,13 @@ The watch appears in the list. Ignore whatever it says for now.
 
 4. Click **Save**.
 
-**Nothing works until you do this.** A watch keeps whatever fetcher it was created
-with, so it is still fetching raw HTML — and TOUS's raw HTML has no price in it.
+A watch keeps whatever fetcher was the default **at the moment it was created**,
+and never changes on its own afterwards. `run.ps1 -WithBrowser` sets that default,
+so a watch you add *after* starting with `-WithBrowser` on a fresh datastore
+already has the Playwright option selected — open the tab and confirm rather than
+assume. Watches added before that, or on an install whose saved default is the
+basic fetcher, are still fetching raw HTML — and TOUS's raw HTML has no price in
+it.
 
 To avoid repeating this for every bag: **Settings → Fetching → Fetch Method** →
 select the same Playwright option → **Save**. New watches then inherit it.
@@ -180,6 +200,7 @@ your target.
 
 | What you see | What it means |
 | --- | --- |
+| No **Request** tab at all | This watch's processor has no request settings — re-add the watch |
 | No **Playwright** option in Fetch Method | The app has no driver URL → Step 0 |
 | Fetch Method is Playwright but price is blank | No structured data on the page → *When no price appears* |
 | Watch stuck on "Checking" | Chrome is wedged: `.\contrib\podman\logs.ps1 -Browser` |

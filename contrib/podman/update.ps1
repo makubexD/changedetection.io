@@ -4,16 +4,16 @@
 # Usage:
 #   .\contrib\podman\update.ps1                 # pull, maybe rebuild, restart
 #   .\contrib\podman\update.ps1 -WithBrowser    # ...and start Chrome alongside
-#   .\contrib\podman\update.ps1 -Image ghcr.io/dgtlmoon/changedetection.io:latest
+#   .\contrib\podman\update.ps1 -Image ghcr.io/makubexd/changedetection.io:stable
 #
 # This is the "I just want the newest version running" command on a machine
 # that only DEPLOYS. It pulls the branch you already have checked out and
 # fast-forwards it; it never merges, never switches branch and never pushes.
 #
-# It is NOT a branch-maintenance script. Bringing new upstream commits into a
-# release branch is a different job with different failure modes -- a merge,
-# conflicts to resolve, a push -- and belongs on the machine where the work
-# happens. Do that there, then run this here.
+# It is NOT a branch-maintenance script. Bringing new upstream commits from
+# master into maku-release is a different job with different failure modes --
+# a merge, a CI gate, a push -- and lives in sync-upstream.ps1 on the machine
+# where the work happens. Run that there, then run this here.
 #
 # YOUR DATA IS SAFE. Everything below replaces the container, never the named
 # volume, so watches and history survive -- run.ps1 does the actual start and
