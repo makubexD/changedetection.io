@@ -8,16 +8,61 @@ Docker path.
 Everything here targets **rootless** Podman, which is the default mode and the
 one that matters if you cannot install or run Docker.
 
-| File | What it is |
+## Start here
+
+There are a lot of files in this directory because there are four different ways
+to deploy. **You only ever need one of them.** Pick by what you are doing:
+
+| I want to… | Go to |
 | --- | --- |
-| `podman-compose.yml` | Compose file with the rootless-Podman deltas applied |
-| `changedetection.container` / `changedetection.volume` | Quadlet systemd units — the native Podman deployment |
-| `changedetection-kube.yaml` | Manifest for `podman kube play` (and real Kubernetes) |
-| `sockpuppetbrowser.container` / `changedetection.network` | Optional Quadlet units for Chrome-backed fetching |
-| `build.ps1` / `run.ps1` / `logs.ps1` | Windows one-liners |
-| `test.ps1` | Automated smoke test: build, run, check `:5000`, check persistence |
-| [`TESTING.md`](TESTING.md) | **Step-by-step test procedure and full command reference** |
-| [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | **Using the app to watch product prices** |
+| get it running on Windows, fastest | [Windows setup](#windows-podman-desktop--wsl2) → `build.ps1`, `run.ps1` |
+| add Chrome so JS pages and prices work | [With a real Chrome browser](#with-a-real-chrome-browser) |
+| prove the whole thing actually works | [TESTING.md](TESTING.md) |
+| watch product prices (TOUS, Amazon) | [PRICE-TRACKING.md](PRICE-TRACKING.md) |
+| deploy it properly on a Linux box | [Quadlet](#linux-quadlet-systemd) |
+
+Shortest possible path from nothing to a running app with Chrome:
+
+```powershell
+.\contrib\podman\build.ps1              # build the image (once)
+.\contrib\podman\run.ps1 -WithBrowser   # start app + Chrome
+```
+
+## What each file is for
+
+**Documentation** — three files, no overlap:
+
+| File | Read it when |
+| --- | --- |
+| `README.md` (this) | Setting up, or something behaves oddly and you want to know why |
+| [`TESTING.md`](TESTING.md) | You want to verify a deployment step by step, with expected output |
+| [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | You have it running and want to *use* it to track prices |
+
+**Windows scripts** — four, and they take the same arguments where it makes sense:
+
+| Script | Use it when | Key options |
+| --- | --- | --- |
+| `build.ps1` | Building the image from this repo | `-Tag`, `-NoCache` |
+| `run.ps1` | Starting it — the everyday command | `-WithBrowser`, `-Image`, `-Port` |
+| `logs.ps1` | Something is wrong and you want to see why | `-Browser`, `-Tail` |
+| `test.ps1` | Verifying end to end, unattended | `-WithBrowser`, `-Image`, `-KeepRunning` |
+
+`run.ps1` and `test.ps1` both default to the locally built `changedetection.io:dev`
+and both take `-Image` to use a published image instead. `run.ps1` replaces the
+container but never the volume, so switching `-WithBrowser` on or off on a live
+install does not touch your watches.
+
+**Deployment files — pick exactly one:**
+
+| File(s) | Use this path when |
+| --- | --- |
+| `podman-compose.yml` | You already think in compose files. Needs `podman-compose` installed |
+| `changedetection.container` + `.volume` + `.network` | Linux server that should start at boot. Native Podman + systemd, no compose |
+| `changedetection-kube.yaml` | You want one manifest that also works on real Kubernetes |
+| *(none — just `run.ps1`)* | You are on Windows and want it running now |
+
+`sockpuppetbrowser.container` is the optional Chrome add-on for the Quadlet path
+only; the other paths carry their own browser definition.
 
 ## Windows: Podman Desktop + WSL2
 
@@ -47,6 +92,13 @@ podman info      # must succeed before anything below will work
 .\contrib\podman\test.ps1         # smoke test: build, run, verify, tear down
 ```
 
+Skipping the build? Point `run.ps1` at a published image instead — nothing else
+changes:
+
+```powershell
+.\contrib\podman\run.ps1 -Image ghcr.io/dgtlmoon/changedetection.io:latest
+```
+
 To check the whole setup rather than just start it, follow
 [TESTING.md](TESTING.md) — it covers every deployment path, what each step
 should print, and what to do when one of them does not.
@@ -64,6 +116,20 @@ browser. `sockpuppetbrowser` provides one; it is optional and off by default.
 
 The proof it worked: **Browser Steps and the Visual Selector appear in the watch
 edit screen.** They are hidden entirely when no browser is configured.
+
+The browser image is **pinned by digest**, not `:latest`. That tag is rebuilt
+often, and its Dockerfile installs whatever Chrome Stable is current on build day
+(`ARG CHROME_VERSION=current`), so `:latest` swaps Chrome underneath you without
+any change on your side. To move to a newer browser, do it deliberately:
+
+```bash
+podman pull docker.io/dgtlmoon/sockpuppetbrowser:latest
+podman image inspect docker.io/dgtlmoon/sockpuppetbrowser:latest --format '{{.Digest}}'
+```
+
+then replace the digest in `podman-compose.yml`, `run.ps1`, `test.ps1`,
+`sockpuppetbrowser.container` and `changedetection-kube.yaml`, and re-run
+`test.ps1 -WithBrowser` before trusting it.
 
 Watch out for one thing — how the app addresses the browser depends on the
 topology, and the two are not interchangeable:

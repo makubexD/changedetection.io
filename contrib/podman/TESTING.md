@@ -195,6 +195,11 @@ Browser Steps or the Visual Selector — see [PRICE-TRACKING.md](PRICE-TRACKING.
 .\contrib\podman\run.ps1 -WithBrowser
 ```
 
+Safe to run against an install that is already up. It removes the container and
+recreates it inside a pod, but the `changedetection-data` volume — every watch,
+every snapshot, all history — is reattached untouched. The same is true turning
+the browser back off.
+
 Then verify, in this order — each one rules out a different failure:
 
 ```powershell

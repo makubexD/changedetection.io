@@ -26,7 +26,11 @@ Wants=network-online.target
 After=network-online.target
 
 [Container]
-Image=docker.io/dgtlmoon/sockpuppetbrowser:latest
+# Pinned by DIGEST, not :latest: that tag is rebuilt often and installs
+# whatever Chrome Stable is current on build day, so it changes Chrome under
+# you. AutoUpdate=registry below is a no-op against a digest, which is the
+# intent -- update by editing this line, not by surprise.
+Image=docker.io/dgtlmoon/sockpuppetbrowser@sha256:a61e64a694fef3b6d375a3c7c7dd7d74b1166a48b231cd98870b78f244deef79
 ContainerName=browser-sockpuppet-chrome
 AutoUpdate=registry
 

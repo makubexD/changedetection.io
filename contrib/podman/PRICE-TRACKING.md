@@ -30,6 +30,9 @@ $env:PLAYWRIGHT_DRIVER_URL = "ws://browser-sockpuppet-chrome:3000"
 podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d
 ```
 
+Restarting this way does not touch your existing watches — they live in the
+`changedetection-data` volume, which is reattached to the new container.
+
 **How to know it actually worked.** Open any watch → **Edit**. If the browser is
 wired up you now see a **Browser Steps** tab and the **Visual Selector**. Those
 two are hidden entirely when the app has no browser configured, so their presence

@@ -75,7 +75,14 @@ services:
   # `--profile browser`, so plain `up -d` keeps running a single container.
   browser-sockpuppet-chrome:
     profiles: ["browser"]
-    image: docker.io/dgtlmoon/sockpuppetbrowser:latest
+    # Pinned by DIGEST, not :latest. That tag is rebuilt often, and the image's
+    # Dockerfile installs whatever Chrome Stable is current on build day
+    # (ARG CHROME_VERSION=current) -- so :latest silently swaps Chrome under you.
+    # Upstream CI broke exactly this way on 2026-09-10.
+    # To move to a newer browser, do it deliberately:
+    #   podman pull docker.io/dgtlmoon/sockpuppetbrowser:latest
+    #   podman image inspect docker.io/dgtlmoon/sockpuppetbrowser:latest --format '{{.Digest}}'
+    image: docker.io/dgtlmoon/sockpuppetbrowser@sha256:a61e64a694fef3b6d375a3c7c7dd7d74b1166a48b231cd98870b78f244deef79
     container_name: browser-sockpuppet-chrome
     hostname: browser-sockpuppet-chrome
     restart: unless-stopped

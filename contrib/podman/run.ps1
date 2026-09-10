@@ -1,5 +1,18 @@
-# Run changedetection.io under rootless Podman, then open it in a browser.
-# Usage: .\contrib\podman\run.ps1 [-Tag dev] [-Port 5000] [-WithBrowser]
+# Start changedetection.io under rootless Podman. The quickest path: one
+# command, no compose binary, no systemd.
+#
+# Usage:
+#   .\contrib\podman\run.ps1                  # runs the image build.ps1 made
+#   .\contrib\podman\run.ps1 -WithBrowser     # ...and real Chrome alongside it
+#   .\contrib\podman\run.ps1 -Image ghcr.io/dgtlmoon/changedetection.io:latest
+#
+# Defaults to changedetection.io:<Tag>, which build.ps1 produces. Pass -Image
+# to run a published image instead and skip building altogether.
+#
+# YOUR DATA IS SAFE. This replaces the container, never the volume: every
+# watch and its history lives in the named volume changedetection-data, and
+# it is reattached to the new container. Turning -WithBrowser on or off on a
+# live install is therefore safe.
 #
 # -WithBrowser also starts sockpuppetbrowser (real Chrome) so the app can render
 # JS-heavy pages and expose the Browser Steps / Visual Selector UI. Both
@@ -9,15 +22,22 @@
 # in podman-compose.yml.
 param(
     [string]$Tag = 'dev',
+    # Run a prebuilt or pulled image instead of one built from this repo.
+    # Mirrors test.ps1's -Image so both scripts take the same arguments.
+    [string]$Image,
     [int]$Port = 5000,
     [switch]$WithBrowser
 )
 $ErrorActionPreference = 'Stop'
 
-$image       = "changedetection.io:$Tag"
+$image       = if ($Image) { $Image } else { "changedetection.io:$Tag" }
 $name        = 'changedetection'
 $browserName = 'browser-sockpuppet-chrome'
 $podName     = 'changedetection-pod'
+# Pinned by DIGEST, not :latest -- see contrib/podman/README.md. The tag is
+# rebuilt often and bakes in whatever Chrome Stable is current that day, so
+# :latest changes Chrome under you without warning.
+$browserImage = 'docker.io/dgtlmoon/sockpuppetbrowser@sha256:a61e64a694fef3b6d375a3c7c7dd7d74b1166a48b231cd98870b78f244deef79'
 
 # Replace any previous container of the same name; the named volume,
 # and therefore every watch and its history, is untouched by this.
@@ -62,7 +82,7 @@ podman run -d `
     -e SCREEN_HEIGHT=1024 `
     -e SCREEN_DEPTH=16 `
     -e MAX_CONCURRENT_CHROME_PROCESSES=10 `
-    docker.io/dgtlmoon/sockpuppetbrowser:latest
+    $browserImage
 if ($LASTEXITCODE -ne 0) { throw "podman run (browser) failed with exit code $LASTEXITCODE" }
 
 podman run -d `
