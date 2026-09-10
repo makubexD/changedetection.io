@@ -224,7 +224,7 @@ podman exec changedetection python -c "import socket; socket.create_connection((
 | d | startup lines, no repeated renderer crash |
 
 **Then the check that actually proves it end to end:** open a watch → **Edit** →
-**General** and read the **Fetch Method** labels. One of them must say
+**Request** and read the **Fetch Method** labels. One of them must say
 
 ```
 Playwright Chromium/Javascript via 'ws://localhost:3000'
