@@ -65,6 +65,20 @@ browser. `sockpuppetbrowser` provides one; it is optional and off by default.
 The proof it worked: **Browser Steps and the Visual Selector appear in the watch
 edit screen.** They are hidden entirely when no browser is configured.
 
+The browser image is **pinned by digest**, not `:latest`. That tag is rebuilt
+often, and its Dockerfile installs whatever Chrome Stable is current on build day
+(`ARG CHROME_VERSION=current`), so `:latest` swaps Chrome underneath you without
+any change on your side. To move to a newer browser, do it deliberately:
+
+```bash
+podman pull docker.io/dgtlmoon/sockpuppetbrowser:latest
+podman image inspect docker.io/dgtlmoon/sockpuppetbrowser:latest --format '{{.Digest}}'
+```
+
+then replace the digest in `podman-compose.yml`, `run.ps1`, `test.ps1`,
+`sockpuppetbrowser.container` and `changedetection-kube.yaml`, and re-run
+`test.ps1 -WithBrowser` before trusting it.
+
 Watch out for one thing — how the app addresses the browser depends on the
 topology, and the two are not interchangeable:
 
