@@ -111,10 +111,39 @@ git pull
 .\contrib\podman\run.ps1 -WithBrowser   # always
 ```
 
-**Rebuild only when the image contents changed** — `Dockerfile`,
-`requirements.txt`, or the application code. A pull that touched only
-`contrib/podman/` (scripts, compose file, docs) does not need a rebuild; just
-re-run `run.ps1`. When in doubt, rebuilding is harmless, only slow.
+#### What “the image changed” means
+
+`build.ps1` bakes a fixed set of files into the image. The `Dockerfile` copies
+these and nothing else, so **only a change to one of them can change the image**:
+
+| Rebuild when these change | Never reaches the image |
+| --- | --- |
+| `Dockerfile` | `contrib/podman/` — all four scripts, the compose file, these docs |
+| `requirements.txt` | `docker-compose.yml` |
+| `changedetectionio/` — the application itself | `.github/` workflows |
+| `changedetection.py` | the repository's own `README.md` |
+| `docs/api-spec.yaml` | anything else in the repo |
+| `docker-entrypoint.sh` | |
+
+Everything changed here lately lives in `contrib/podman/`, which is not in the
+image — so `run.ps1` on its own is enough after those pulls.
+
+**Let git answer it for you.** Run this immediately after the pull, before
+anything else touches the repo:
+
+```powershell
+git diff --name-only 'HEAD@{1}' HEAD -- Dockerfile docker-entrypoint.sh `
+    requirements.txt changedetection.py changedetectionio/ docs/api-spec.yaml
+```
+
+Nothing printed → skip `build.ps1`. Any filenames → rebuild. `HEAD@{1}` is where
+you were before the pull, which is why this has to run first — and the quotes
+matter: PowerShell reads a bare `@{` as the start of a hashtable, and git then
+fails with `Needed a single revision`.
+
+**When in doubt, just rebuild.** With the layer cache warm, a rebuild that
+changes nothing re-uses every layer and finishes in seconds. It is never wrong,
+only occasionally slow.
 
 On the compose path the equivalent is:
 
