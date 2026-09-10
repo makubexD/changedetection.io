@@ -52,13 +52,22 @@ function Assert-CleanTree {
 }
 
 # A fresh clone of the fork has no 'upstream'. Add it rather than failing with
-# an error the reader then has to translate into this command themselves.
+# an error the reader then has to translate into this command themselves --
+# and disable pushing to it in the same breath. A remote added without a push
+# URL happily pushes to its fetch URL, which here is the upstream repository
+# itself; nobody wants to discover that by doing it.
 function Assert-UpstreamRemote {
     $null = & git remote get-url upstream 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Adding 'upstream' remote -> $upstreamUrl"
         & git remote add upstream $upstreamUrl
         if ($LASTEXITCODE -ne 0) { throw "could not add the upstream remote" }
+    }
+    $pushUrl = & git config --get remote.upstream.pushurl
+    if ($LASTEXITCODE -ne 0 -or -not $pushUrl) {
+        Write-Host "Disabling pushes to 'upstream' (it is fetch-only by design)."
+        & git remote set-url --push upstream DISABLED
+        if ($LASTEXITCODE -ne 0) { throw "could not disable the upstream push URL" }
     }
 }
 
@@ -121,13 +130,18 @@ function Show-BannerState([string]$branch) {
 
 Push-Location $repoRoot
 try {
+    # Remote safety FIRST, then the identity check. The check refuses when
+    # upstream can still be pushed to, which on a fresh clone is the state this
+    # very function fixes -- run the other way round, the guard would block the
+    # only thing able to satisfy it.
+    Assert-UpstreamRemote
+
     if ($SkipIdentityCheck) {
         Write-Host "Identity check SKIPPED by request -- pushing as $(& git config user.name)."
     } else {
         Invoke-IdentityGuard
     }
     Assert-CleanTree
-    Assert-UpstreamRemote
 
     & git fetch upstream --tags --prune
     if ($LASTEXITCODE -ne 0) { throw "git fetch upstream failed" }

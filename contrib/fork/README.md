@@ -11,6 +11,7 @@ be proposable upstream unchanged.
 | --- | --- |
 | `sync-fork.ps1` | Fetch upstream → fast-forward `master` → merge `master` into `maku-release` → push both |
 | `identity.ps1` | Switch this clone between GitHub accounts, guard pushes, and put the machine back as found |
+| [`NEW-MACHINE.md`](NEW-MACHINE.md) | **Start here on a machine that has never seen this fork** — ordered setup, with a check after every step |
 
 ```powershell
 .\contrib\fork\sync-fork.ps1

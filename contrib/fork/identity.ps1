@@ -236,9 +236,19 @@ function Assert-RemoteSafety($p) {
                   "this clone would push somewhere that profile does not own."
         }
     }
+    # Only meaningful when the remote exists at all.
+    $null = & git -C $repoRoot remote get-url upstream 2>$null
+    if ($LASTEXITCODE -ne 0) { return }
+
+    # An UNSET push URL is not safe -- git then pushes to the fetch URL, which
+    # for this remote is the upstream repository. Absent has to fail the same
+    # way a wrong value does, or a fresh clone is unprotected precisely because
+    # nobody configured it yet.
     $pushUrl = & git -C $repoRoot config --get remote.upstream.pushurl
-    if ($LASTEXITCODE -eq 0 -and $pushUrl -and $pushUrl.Trim() -ne 'DISABLED') {
-        throw "UPSTREAM PUSH IS ENABLED ('$pushUrl') -- a push could reach the upstream repo. " +
+    $set = ($LASTEXITCODE -eq 0 -and $pushUrl)
+    if (-not $set -or $pushUrl.Trim() -ne 'DISABLED') {
+        $shown = if ($set) { "'$($pushUrl.Trim())'" } else { 'unset, so it falls back to the fetch URL' }
+        throw "UPSTREAM PUSH IS NOT DISABLED ($shown) -- a push could reach the upstream repo. " +
               "Run: git remote set-url --push upstream DISABLED"
     }
 }
