@@ -190,9 +190,11 @@ browser. `sockpuppetbrowser` provides one; it is optional and off by default.
 ```
 
 The proof it worked: open a watch → **Edit** → **Request** and read the **Fetch
-Method** labels — the **Request** tab, not **General**. One must say `Playwright Chromium/Javascript via
-'ws://localhost:3000'`. Seeing only `WebDriver Chrome/Javascript` means the app
-never got `PLAYWRIGHT_DRIVER_URL`.
+Method** radios — the **Request** tab, not **General**. There are three of them:
+`Basic fast Plaintext/HTTP Client`, the browser one, and `System settings default`.
+The middle one must say `Playwright Chromium/Javascript via 'ws://localhost:3000'`.
+If it says `WebDriver Chrome/Javascript` with no URL after it, the app never got
+`PLAYWRIGHT_DRIVER_URL`.
 
 Select that option and **Save** — a watch keeps using plain HTTP until you do,
 and the **Browser Steps** tab only appears afterwards. `-WithBrowser` also sets
