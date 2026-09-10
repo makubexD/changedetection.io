@@ -18,7 +18,7 @@ to deploy. **You only ever need one of them.** Pick by what you are doing:
 | get it running on Windows, fastest | [Windows setup](#windows-podman-desktop--wsl2) → `build.ps1`, `run.ps1` |
 | add Chrome so JS pages and prices work | [With a real Chrome browser](#with-a-real-chrome-browser) |
 | prove the whole thing actually works | [TESTING.md](TESTING.md) |
-| watch product prices (TOUS, Amazon) | [PRICE-TRACKING.md](PRICE-TRACKING.md) |
+| watch product prices, step by step | [GUIDE-TOUS.md](GUIDE-TOUS.md) · [GUIDE-AMAZON.md](GUIDE-AMAZON.md) |
 | deploy it properly on a Linux box | [Quadlet](#linux-quadlet-systemd) |
 
 Shortest possible path from nothing to a running app with Chrome:
@@ -36,7 +36,8 @@ Shortest possible path from nothing to a running app with Chrome:
 | --- | --- |
 | `README.md` (this) | Setting up, or something behaves oddly and you want to know why |
 | [`TESTING.md`](TESTING.md) | You want to verify a deployment step by step, with expected output |
-| [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | You have it running and want to *use* it to track prices |
+| [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | You have it running and want to *use* it to track prices — the technique |
+| [`GUIDE-TOUS.md`](GUIDE-TOUS.md) / [`GUIDE-AMAZON.md`](GUIDE-AMAZON.md) | You want click-by-click steps for one of those two sites |
 
 **Windows scripts** — four, and they take the same arguments where it makes sense:
 

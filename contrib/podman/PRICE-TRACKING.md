@@ -201,60 +201,22 @@ the global default applies to everything otherwise.
 
 ---
 
-# Worked examples
+# Site-by-site walkthroughs
 
-## 8. tous.com
+The sections above are the technique. For literal click-by-click instructions,
+with every label quoted as the app shows it, use the per-site guides:
 
-**Watch the product, not the category.**
-`https://www.tous.com/pe-es/carteras/bandoleras/c/486` is a *category* listing —
-every bag on it, plus sorting, badges and pagination. A change there tells you
-almost nothing (section 4).
+| Site | Guide |
+| --- | --- |
+| tous.com | [GUIDE-TOUS.md](GUIDE-TOUS.md) |
+| amazon.com | [GUIDE-AMAZON.md](GUIDE-AMAZON.md) |
 
-1. Open the category in your own browser and click through to the specific bag
-   you want.
-2. Copy **that** URL — the product page — and add it as the watch.
-3. Processor → **Restock & Price detection**, fetch method → Chrome.
-   TOUS renders a lot client-side, so the browser from section 1 is not optional
-   here.
-4. **Recheck, then look at the price column.** If a price in `S/` appears, you
-   are done — set your **Below price** target and a 1–2% threshold.
-5. If no price appears, use the Visual Selector: click the displayed price on the
-   rendered page, preview to confirm the filtered text is only the price, then
-   add a condition **Extracted number** *less than* your target (section 3).
+Both start with the same Step 0 — proving Chrome is actually connected — because
+that is where this usually goes wrong.
 
-Repeat per bag you care about. Several one-product watches beat one category
-watch: each has its own target price, and each alert names the actual item.
+---
 
-## 9. Amazon
-
-**Use the canonical product URL.** Strip the tracking junk — everything from
-`/ref=` onwards, and any `?tag=`/`?th=` parameters:
-
-```
-https://www.amazon.com/dp/B0XXXXXXXX
-```
-
-The `/dp/<ASIN>` form is stable; the long titled URLs are not, and they change
-under you.
-
-Amazon product pages usually carry clean structured data, so **Restock & Price
-detection** often picks up price and stock with no filter at all. Try it before
-reaching for the Visual Selector.
-
-**What to expect, honestly.** Amazon actively detects and blocks automated
-browsers. You may see `503`s, CAPTCHA interstitials, or a page that renders
-without a price. This is not a misconfiguration on your side and there is no
-setting that reliably defeats it. What helps:
-
-- A **long interval** — 12 hours or daily. Frequent checks are the fastest way
-  to get blocked.
-- Setting a realistic **User-Agent** in the watch's Request headers.
-- Accepting that some listings simply will not be watchable.
-
-If a given ASIN keeps failing, an alternative is to watch a price-history site
-for that product instead of Amazon directly.
-
-## 10. Cart pages via session cookie
+## 8. Cart pages via session cookie
 
 Both `https://www.tous.com/pe-es/cart` and `https://www.amazon.com/cart` require
 you to be logged in. changedetection.io can send your session cookie so it sees
