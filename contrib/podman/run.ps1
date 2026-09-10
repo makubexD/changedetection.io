@@ -148,7 +148,7 @@ if ($LASTEXITCODE -ne 0) { Stop-WithReason 'podman run' $LASTEXITCODE $Port }
 
 Write-Host "changedetection.io is starting on http://localhost:$Port (pod: $podName)"
 Write-Host ""
-Write-Host "To confirm Chrome is wired up: open a watch -> Edit -> General and read"
+Write-Host "To confirm Chrome is wired up: open a watch -> Edit -> Request and read"
 Write-Host "the Fetch Method labels. One must say:"
 Write-Host "    Playwright Chromium/Javascript via 'ws://localhost:3000'"
 Write-Host "Seeing only 'WebDriver Chrome/Javascript' means the app did not get the"

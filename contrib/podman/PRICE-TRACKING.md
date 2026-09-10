@@ -44,8 +44,9 @@ podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'
 Prints `ws://localhost:3000` → good. Prints nothing → the app has no browser, and
 nothing below will work.
 
-**Then, in the UI.** Open any watch → **Edit** → **General** tab and read the
-**Fetch Method** options. The label tells you what the app actually connected to:
+**Then, in the UI.** Open any watch → **Edit** → **Request** tab and read the
+**Fetch Method** options. (**Request**, not **General** — **General** carries the
+URL, Processor and interval only.) The label tells you what the app actually connected to:
 
 | Label you see | What it means |
 | --- | --- |
@@ -82,7 +83,7 @@ Fetch Method**; new watches then inherit it.
 price in its structured data, which is precisely what the price mode wants.
 
 1. Paste the product URL into **Add a new change detection watch**.
-2. Open the watch → **Edit** → **General** → set **Fetch Method** to the
+2. Open the watch → **Edit** → **Request** → set **Fetch Method** to the
    **Playwright Chromium/Javascript** option, and **Save**. Do this first: several
    things below only appear once the watch is on a browser fetcher.
 3. Re-open **Edit** → set **Processor** to **Restock & Price detection**.
@@ -190,7 +191,7 @@ the global default applies to everything otherwise.
 | --- | --- |
 | Price column empty, no error | No structured data on the page → section 3 (Visual Filter Selector + `extracted_number`). |
 | Price empty **and** the page looks unrendered in Preview | Watch is still on the basic fetcher. Set **Fetch method** to Chrome; confirm Browser Steps is visible (section 1). |
-| No **Browser Steps** tab at all | **Most likely: this watch is not on the Playwright fetcher.** That tab follows the watch's own Fetch Method, not whether a browser exists. Edit → General → select the Playwright option → Save → re-open. |
+| No **Browser Steps** tab at all | **Most likely: this watch is not on the Playwright fetcher.** That tab follows the watch's own Fetch Method, not whether a browser exists. Edit → Request → select the Playwright option → Save → re-open. |
 | Fetch Method says `WebDriver Chrome/Javascript`, never Playwright | The app has no `PLAYWRIGHT_DRIVER_URL`, so it fell back to Selenium. Check with `podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'`. Pods use `ws://localhost:3000`, compose/Quadlet use `ws://browser-sockpuppet-chrome:3000` — they are not interchangeable. |
 | **Visual Filter Selector** says "Sorry, this functionality only works with fetchers that support Javascript and screenshots" | Same cause: the watch is on the basic fetcher. That tab is always visible, so its presence never proved anything. |
 | Watch stuck "Checking" forever | Browser unreachable or wedged: `.\contrib\podman\logs.ps1 -Browser`. |

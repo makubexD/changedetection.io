@@ -18,6 +18,7 @@ to deploy. **You only ever need one of them.** Pick by what you are doing:
 | get it running on Windows, fastest | [Windows setup](#windows-podman-desktop--wsl2) → `build.ps1`, `run.ps1` |
 | add Chrome so JS pages and prices work | [With a real Chrome browser](#with-a-real-chrome-browser) |
 | prove the whole thing actually works | [TESTING.md](TESTING.md) |
+| pull new code and put it live | [Updating](#updating-to-the-latest-code) → `update.ps1` |
 | watch product prices (TOUS, Amazon) | [PRICE-TRACKING.md](PRICE-TRACKING.md) |
 | deploy it properly on a Linux box | [Quadlet](#linux-quadlet-systemd) |
 
@@ -38,7 +39,7 @@ Shortest possible path from nothing to a running app with Chrome:
 | [`TESTING.md`](TESTING.md) | You want to verify a deployment step by step, with expected output |
 | [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | You have it running and want to *use* it to track prices |
 
-**Windows scripts** — four, and they take the same arguments where it makes sense:
+**Windows scripts** — five, and they take the same arguments where it makes sense:
 
 | Script | Use it when | Key options |
 | --- | --- | --- |
@@ -46,6 +47,7 @@ Shortest possible path from nothing to a running app with Chrome:
 | `run.ps1` | Starting it — the everyday command | `-WithBrowser`, `-Image`, `-Port` |
 | `logs.ps1` | Something is wrong and you want to see why | `-Browser`, `-Tail` |
 | `test.ps1` | Verifying end to end, unattended | `-WithBrowser`, `-Image`, `-KeepRunning` |
+| `update.ps1` | Pulling new code and putting it live in one step | `-WithBrowser`, `-Image`, `-Port`, `-Tag` |
 
 `run.ps1` and `test.ps1` both default to the locally built `changedetection.io:dev`
 and both take `-Image` to use a published image instead. `run.ps1` replaces the
@@ -99,17 +101,36 @@ changes:
 .\contrib\podman\run.ps1 -Image ghcr.io/dgtlmoon/changedetection.io:latest
 ```
 
-### After a `git pull`
+### Updating to the latest code
 
-`run.ps1` is safe to re-run at any time. It clears whatever the previous run
-left behind — container, browser container and pod — then starts fresh against
-the same `changedetection-data` volume, so your watches survive untouched.
+One command does the whole thing — pull, rebuild if and only if the pull
+touched the image, restart:
+
+```powershell
+.\contrib\podman\update.ps1 -WithBrowser
+```
+
+It fast-forwards the branch you already have checked out. It never merges,
+never switches branch and never pushes, so it is safe on a machine that only
+deploys. It refuses on a dirty tree and on a diverged clone rather than
+guessing. Pass the same `-WithBrowser` / `-Image` / `-Port` you would pass
+`run.ps1`; they are handed straight through.
+
+Bringing new **upstream** commits into a release branch is a different job — a
+merge, with conflicts to resolve and a push — and does not belong on a
+deployment machine. Do that where you develop, then run `update.ps1` here.
+
+The manual equivalent, if you would rather see each step:
 
 ```powershell
 git pull
 .\contrib\podman\build.ps1              # only if the IMAGE changed
 .\contrib\podman\run.ps1 -WithBrowser   # always
 ```
+
+`run.ps1` is safe to re-run at any time. It clears whatever the previous run
+left behind — container, browser container and pod — then starts fresh against
+the same `changedetection-data` volume, so your watches survive untouched.
 
 #### What “the image changed” means
 
@@ -126,7 +147,8 @@ these and nothing else, so **only a change to one of them can change the image**
 | `docker-entrypoint.sh` | |
 
 Everything changed here lately lives in `contrib/podman/`, which is not in the
-image — so `run.ps1` on its own is enough after those pulls.
+image — so `run.ps1` on its own is enough after those pulls. `update.ps1` applies
+this same table for you and prints which files, if any, forced the rebuild.
 
 **Let git answer it for you.** Run this immediately after the pull, before
 anything else touches the repo:
@@ -166,8 +188,8 @@ browser. `sockpuppetbrowser` provides one; it is optional and off by default.
 .\contrib\podman\test.ps1 -WithBrowser   # verify the app can reach it
 ```
 
-The proof it worked: open a watch → **Edit** → **General** and read the **Fetch
-Method** labels. One must say `Playwright Chromium/Javascript via
+The proof it worked: open a watch → **Edit** → **Request** and read the **Fetch
+Method** labels — the **Request** tab, not **General**. One must say `Playwright Chromium/Javascript via
 'ws://localhost:3000'`. Seeing only `WebDriver Chrome/Javascript` means the app
 never got `PLAYWRIGHT_DRIVER_URL`.
 
