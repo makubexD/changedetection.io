@@ -79,11 +79,13 @@ function Show-ContainerLogs {
 }
 
 function Remove-TestContainers {
-    podman rm -f $container 2>$null | Out-Null
-    if ($WithBrowser) {
-        podman rm -f $browser 2>$null | Out-Null
-        podman pod rm -f $pod 2>$null | Out-Null
-    }
+    # Unconditional, not gated on -WithBrowser. A previous -WithBrowser
+    # -KeepRunning left a POD publishing $Port, and its infra container keeps
+    # that binding even once the app container is gone -- so a later plain run
+    # would fail to bind with "address already in use". Same reasoning as
+    # run.ps1. Removing what is not there is a no-op.
+    podman rm -f $container $browser 2>$null | Out-Null
+    podman pod rm -f $pod 2>$null | Out-Null
 }
 
 function Start-TestStack {
