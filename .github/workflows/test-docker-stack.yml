@@ -1,0 +1,111 @@
+# Brings the whole stack up under Docker Compose -- app AND real Chrome -- and
+# proves it works, inside the job.
+#
+# This is the Docker counterpart to test-podman-build.yml, but it checks one
+# thing that no other job does: that the app actually OFFERS the Playwright
+# fetcher. Twice now a deployment has looked healthy -- containers up, HTTP 200
+# -- while the app had silently fallen back to Selenium because
+# PLAYWRIGHT_DRIVER_URL never reached it. Only the fetcher label says which, and
+# until now the only thing checking it was a human reading a docs table.
+#
+# It reuses contrib/podman/podman-compose.yml rather than adding a CI-only
+# compose file: that file is plain Compose spec, so docker compose reads it
+# unchanged, and a second copy would be a second thing to keep in step.
+name: Test Docker stack
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - 'docker-compose.yml'
+      - 'contrib/podman/podman-compose.yml'
+      - '.github/workflows/test-docker-stack.yml'
+  pull_request:
+  workflow_dispatch:
+
+env:
+  COMPOSE: docker compose -f contrib/podman/podman-compose.yml
+  # Shared-network topology: the app reaches Chrome by service name, not
+  # localhost. A shared POD (run.ps1 -WithBrowser, kube play) uses
+  # ws://localhost:3000 instead -- the two are not interchangeable.
+  PLAYWRIGHT_DRIVER_URL: ws://browser-sockpuppet-chrome:3000
+  DEFAULT_FETCH_BACKEND: html_webdriver
+
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compose version
+        run: $COMPOSE version
+
+      - name: Build and start app + Chrome
+        run: $COMPOSE --profile browser up -d --build
+
+      - name: Wait for the app to answer on :5000
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:5000/; then
+              echo "changedetection.io responded after $((i*2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::App did not respond on :5000 within 120s"
+          exit 1
+
+      - name: The driver URL reached the container
+        run: |
+          got=$($COMPOSE exec -T changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL')
+          echo "PLAYWRIGHT_DRIVER_URL=$got"
+          if [ "$got" != "$PLAYWRIGHT_DRIVER_URL" ]; then
+            echo "::error::Expected '$PLAYWRIGHT_DRIVER_URL' in the container, got '$got'"
+            exit 1
+          fi
+
+      - name: The app can reach Chrome
+        run: |
+          $COMPOSE exec -T changedetection python -c \
+            "import socket; socket.create_connection(('browser-sockpuppet-chrome', 3000), 10); print('browser reachable')"
+
+      # The check that actually proves it end to end. Everything above can pass
+      # while the app still offers only the Selenium fallback.
+      - name: The app OFFERS the Playwright fetcher
+        run: |
+          # -L because /settings redirects when a password is configured; no
+          # password is set here, so it should answer directly.
+          page=$(curl -sfL http://localhost:5000/settings) || {
+            echo "::error::Could not read /settings"; exit 1; }
+          if echo "$page" | grep -q "Playwright Chromium/Javascript"; then
+            echo "$page" | grep -o "Playwright Chromium/Javascript[^<]*" | head -1
+          else
+            echo "::error::Settings offers no Playwright fetcher -- the app fell back to Selenium."
+            echo "$page" | grep -o "WebDriver Chrome/Javascript[^<]*" | head -1 || true
+            exit 1
+          fi
+
+      - name: Watches survive a container replacement
+        run: |
+          $COMPOSE --profile browser up -d --force-recreate changedetection
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:5000/ && break
+            sleep 2
+          done
+          curl -sf -o /dev/null http://localhost:5000/ || {
+            echo "::error::App did not come back after recreate"; exit 1; }
+          echo "named volume survived the recreate"
+
+      - name: Logs on failure
+        if: failure()
+        run: |
+          echo "--- changedetection ---"
+          $COMPOSE logs --no-color --tail 120 changedetection || true
+          echo "--- browser ---"
+          $COMPOSE logs --no-color --tail 60 browser-sockpuppet-chrome || true
+
+      - name: Tear down
+        if: always()
+        run: $COMPOSE --profile browser down -v || true

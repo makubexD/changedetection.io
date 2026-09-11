@@ -10,6 +10,7 @@ and its upstream, so it is kept off `master` (a pristine mirror) and off the
 | File | What it is |
 | --- | --- |
 | **[`NEW-MACHINE.md`](NEW-MACHINE.md)** | **Start here on a machine that has never seen this fork.** The ordered setup path |
+| [`GITHUB-CI.md`](GITHUB-CI.md) | What the GitHub workflows do, how to trigger them, and what GitHub can and cannot run |
 | `sync-fork.ps1` | Fetch upstream → fast-forward `master` → merge into `maku-release` → push both |
 | `identity.ps1` | Which account this clone commits and pushes as |
 

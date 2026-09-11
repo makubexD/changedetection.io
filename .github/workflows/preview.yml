@@ -1,0 +1,135 @@
+# A TEMPORARY, PASSWORD-PROTECTED public URL for a running instance, for as
+# long as one job lasts.
+#
+# READ THIS BEFORE USING IT. GitHub Actions cannot host anything. Runners are
+# ephemeral, have no inbound networking, and are destroyed when the job ends, so
+# this works by dialling OUT to a Cloudflare quick tunnel. That means:
+#
+#   * the URL dies with the job -- minutes, not days. It is a preview, never a
+#     deployment. For a real URL, deploy the published GHCR image somewhere
+#     that is actually a host.
+#   * on a public repository the URL is visible in the run log to anyone. That
+#     is why a password is MANDATORY here: changedetection.io fetches arbitrary
+#     URLs on command, so an unauthenticated public instance is an open proxy
+#     wearing a friendly hat.
+#   * the datastore starts empty every time and is thrown away.
+#
+# Set the secret first, once:
+#   gh secret set PREVIEW_PASSWORD --body '<something long>'
+# Then: Actions -> Live preview -> Run workflow.
+name: Live preview
+
+# Manual only, deliberately. Nothing about this should ever fire on a push.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: 'How long to keep the URL alive (1-60)'
+        required: true
+        default: '20'
+      with_browser:
+        description: 'Start real Chrome too (needed for JS pages and prices)'
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    # +5 so the job itself is never what kills the tunnel; the sleep below is.
+    timeout-minutes: 65
+    if: github.repository == 'makubexD/changedetection.io'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse without a password
+        env:
+          PREVIEW_PASSWORD: ${{ secrets.PREVIEW_PASSWORD }}
+        run: |
+          if [ -z "$PREVIEW_PASSWORD" ]; then
+            echo "::error::Secret PREVIEW_PASSWORD is not set. This workflow will not"
+            echo "::error::expose an unauthenticated instance. Set it with:"
+            echo "::error::  gh secret set PREVIEW_PASSWORD --body '<something long>'"
+            exit 1
+          fi
+
+      - name: Validate the duration
+        id: dur
+        run: |
+          m='${{ inputs.minutes }}'
+          case "$m" in ''|*[!0-9]*) echo "::error::minutes must be a number"; exit 1;; esac
+          if [ "$m" -lt 1 ] || [ "$m" -gt 60 ]; then
+            echo "::error::minutes must be between 1 and 60"; exit 1
+          fi
+          echo "minutes=$m" >> $GITHUB_OUTPUT
+
+      # SALTED_PASS is base64(32-byte salt + pbkdf2-sha256, 100k rounds), the
+      # same construction the app's own password field uses
+      # (changedetectionio/forms.py:105-114). Built here so the plaintext never
+      # leaves the runner.
+      - name: Derive SALTED_PASS
+        env:
+          PREVIEW_PASSWORD: ${{ secrets.PREVIEW_PASSWORD }}
+        run: |
+          salted=$(python3 - <<'PY'
+          import base64, hashlib, os, secrets
+          salt = secrets.token_bytes(32)
+          key = hashlib.pbkdf2_hmac('sha256', os.environ['PREVIEW_PASSWORD'].encode('utf-8'), salt, 100000)
+          print(base64.b64encode(salt + key).decode('ascii'))
+          PY
+          )
+          echo "::add-mask::$salted"
+          echo "SALTED_PASS=$salted" >> $GITHUB_ENV
+
+      - name: Start the stack
+        env:
+          PLAYWRIGHT_DRIVER_URL: ${{ inputs.with_browser && 'ws://browser-sockpuppet-chrome:3000' || '' }}
+          DEFAULT_FETCH_BACKEND: ${{ inputs.with_browser && 'html_webdriver' || '' }}
+        run: |
+          profile=""
+          [ "${{ inputs.with_browser }}" = "true" ] && profile="--profile browser"
+          docker compose -f contrib/podman/podman-compose.yml $profile up -d --build
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:5000/ && break
+            sleep 2
+          done
+          curl -sf -o /dev/null http://localhost:5000/ || {
+            echo "::error::App never came up"
+            docker compose -f contrib/podman/podman-compose.yml logs --no-color --tail 120
+            exit 1; }
+
+      - name: Open the tunnel
+        run: |
+          curl -sSL -o cloudflared \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          ./cloudflared tunnel --no-autoupdate --url http://localhost:5000 \
+            > tunnel.log 2>&1 &
+          for i in $(seq 1 30); do
+            url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' tunnel.log | head -1)
+            [ -n "$url" ] && break
+            sleep 2
+          done
+          if [ -z "$url" ]; then
+            echo "::error::Tunnel did not report a URL"; cat tunnel.log; exit 1
+          fi
+          {
+            echo "## Live preview"
+            echo ""
+            echo "**$url**"
+            echo ""
+            echo "Log in with the password in \`PREVIEW_PASSWORD\`."
+            echo ""
+            echo "Chrome: ${{ inputs.with_browser && 'on' || 'off' }} · "
+            echo "dies in ${{ steps.dur.outputs.minutes }} minutes · empty datastore, discarded afterwards."
+          } >> $GITHUB_STEP_SUMMARY
+          echo "Preview: $url"
+
+      - name: Hold it open
+        run: |
+          echo "Sleeping ${{ steps.dur.outputs.minutes }} minutes. Cancel the run to end early."
+          sleep $(( ${{ steps.dur.outputs.minutes }} * 60 ))
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f contrib/podman/podman-compose.yml --profile browser down -v || true
