@@ -43,12 +43,26 @@ if (Test-Path Variable:\PSNativeCommandUseErrorActionPreference) {
 $repoRoot   = Resolve-Path "$PSScriptRoot\..\.."
 $upstreamUrl = 'https://github.com/dgtlmoon/changedetection.io.git'
 
+# Only TRACKED changes are the problem: those are what make the branch switches
+# below fail halfway and leave you on an unexpected branch. Untracked files ride
+# along harmlessly, and refusing over them meant every machine had to be told to
+# exclude its own editor and tool config before the sync would run at all. Git
+# still refuses on its own if an untracked file would be overwritten by the
+# checkout, and the exit codes below catch that.
 function Assert-CleanTree {
-    $dirty = & git status --porcelain
+    $dirty = & git status --porcelain --untracked-files=no
     if ($LASTEXITCODE -ne 0) { throw "not a git repository: $repoRoot" }
     if ($dirty) {
-        throw "Working tree is not clean -- commit or stash first:`n$dirty"
+        throw "Working tree has uncommitted changes -- commit or stash first:`n$dirty"
     }
+}
+
+# git checkout reports failure only through its exit code. Left unchecked, a
+# refused checkout would fall through and run the next command against whatever
+# branch is still current.
+function Invoke-Checkout([string]$branch) {
+    & git checkout $branch
+    if ($LASTEXITCODE -ne 0) { throw "could not check out '$branch'" }
 }
 
 # A fresh clone of the fork has no 'upstream'. Add it rather than failing with
@@ -163,14 +177,13 @@ try {
         Assert-UpstreamCiGreen $target
     }
 
-    & git checkout master
+    Invoke-Checkout master
     & git merge --ff-only upstream/master
     if ($LASTEXITCODE -ne 0) { throw "master could not fast-forward to upstream/master" }
     & git push origin master
     if ($LASTEXITCODE -ne 0) { throw "could not push master" }
 
-    & git checkout $ReleaseBranch
-    if ($LASTEXITCODE -ne 0) { throw "no such branch: $ReleaseBranch" }
+    Invoke-Checkout $ReleaseBranch
 
     $behind = & git rev-list --count "$ReleaseBranch..master"
     if ($behind -eq '0') {

@@ -31,8 +31,11 @@ repository itself.
 
 It stops rather than guessing:
 
-- **Dirty working tree** — the branch switches would otherwise fail halfway and
-  leave you on an unexpected branch.
+- **Uncommitted changes to tracked files** — the branch switches would otherwise
+  fail halfway and leave you on an unexpected branch. Untracked files are
+  ignored: they do not block a checkout, and refusing over them would mean every
+  machine had to exclude its own editor and tool config before the sync would
+  run at all.
 - **`master` has local commits** — it has stopped being a clean mirror, and the
   fast-forward every future sync depends on is already broken. Move them to a
   `feat/*` branch.

@@ -183,7 +183,7 @@ modified. Add `unprotect` to drop the push guard too.
 | `use` warns it could not switch gh | That account is not logged in here: `gh auth login -u <name>` |
 | `define` says it needs an interactive console | Configure with `git config` and use `capture <name>` instead |
 | "Expected upstream pushes to be DISABLED" | `git remote set-url --push upstream DISABLED` |
-| `sync-fork.ps1` says the tree is not clean | Commit or stash. Untracked local config counts — put it in `.git/info/exclude` |
+| `sync-fork.ps1` says the tree has uncommitted changes | Commit or stash them. It only counts *tracked* files, so untracked editor or tool config is fine to leave lying around |
 | The hook never fires | Per-clone: run `protect` on *this* machine. Also check for `--no-verify` |
 | `git push` fails on credentials, not the hook | Wrong credential username. git contacts the remote before the hook runs, so auth fails first |
 | Watches sit on `Fetching…` | Not setup — see [`GUIDE-TOUS.md`](../podman/GUIDE-TOUS.md) |

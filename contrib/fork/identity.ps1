@@ -310,8 +310,18 @@ function Assert-Field([string]$field, $actual, $expected, [string]$target) {
 }
 
 function Assert-GhAccount($expected, $actual, [string]$target) {
-    if (-not $expected -or $actual -eq $expected) { return }
-    $was = if ($actual) { "'$actual'" } else { 'no account' }
+    if (-not $expected) { return }
+    # gh is optional everywhere else, so it cannot be mandatory here. A profile
+    # always carries a ghUser (define derives it from the username), so without
+    # this the guard would refuse on every machine that has no gh -- and the
+    # pre-push hook would block every push on one. Say it was skipped: a check
+    # that did not run must never read as a check that passed.
+    if (-not (Test-GhPresent)) {
+        Write-Host "  note: gh is not installed, so its account was not checked."
+        return
+    }
+    if ($actual -eq $expected) { return }
+    $was = if ($actual) { "'$actual'" } else { 'no signed-in account' }
     throw "Expected gh to be signed in as '$expected', but it is $was. " +
           "gh's active account is global to this machine, so another terminal may " +
           "have changed it." + [Environment]::NewLine + "  fix: $SELF use $target"
