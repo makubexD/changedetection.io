@@ -18,6 +18,7 @@ to deploy. **You only ever need one of them.** Pick by what you are doing:
 | get it running on Windows, fastest | [Windows setup](#windows-podman-desktop--wsl2) → `build.ps1`, `run.ps1` |
 | add Chrome so JS pages and prices work | [With a real Chrome browser](#with-a-real-chrome-browser) |
 | prove the whole thing actually works | [TESTING.md](TESTING.md) |
+| run the project's own tests, with a browser | [RUNNING-TESTS.md](RUNNING-TESTS.md) → `test-suite.ps1` |
 | pull new code and put it live | [Updating](#updating-to-the-latest-code) → `update.ps1` |
 | watch product prices (TOUS, Amazon) | [PRICE-TRACKING.md](PRICE-TRACKING.md) |
 | deploy it properly on a Linux box | [Quadlet](#linux-quadlet-systemd) |
@@ -37,9 +38,10 @@ Shortest possible path from nothing to a running app with Chrome:
 | --- | --- |
 | `README.md` (this) | Setting up, or something behaves oddly and you want to know why |
 | [`TESTING.md`](TESTING.md) | You want to verify a deployment step by step, with expected output |
+| [`RUNNING-TESTS.md`](RUNNING-TESTS.md) | You changed something and want the project's own tests to tell you if it still works |
 | [`PRICE-TRACKING.md`](PRICE-TRACKING.md) | You have it running and want to *use* it to track prices |
 
-**Windows scripts** — five, and they take the same arguments where it makes sense:
+**Windows scripts** — six, and they take the same arguments where it makes sense:
 
 | Script | Use it when | Key options |
 | --- | --- | --- |
@@ -47,6 +49,7 @@ Shortest possible path from nothing to a running app with Chrome:
 | `run.ps1` | Starting it — the everyday command | `-WithBrowser`, `-Image`, `-Port` |
 | `logs.ps1` | Something is wrong and you want to see why | `-Browser`, `-Tail` |
 | `test.ps1` | Verifying end to end, unattended | `-WithBrowser`, `-Image`, `-KeepRunning` |
+| `test-suite.ps1` | Running the application's pytest suite, browser included | `-Suite`, `-Path`, `-NoBuild` |
 | `update.ps1` | Pulling new code and putting it live in one step | `-WithBrowser`, `-Image`, `-Port`, `-Tag` |
 
 `run.ps1` and `test.ps1` both default to the locally built `changedetection.io:dev`
