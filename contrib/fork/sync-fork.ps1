@@ -82,7 +82,7 @@ function Invoke-IdentityGuard {
         throw "identity.ps1 is missing from $PSScriptRoot -- refusing to push " +
               "without an identity check. Restore it, or re-run with -SkipIdentityCheck."
     }
-    & $guard -Action check
+    & $guard check
 }
 
 # Upstream already ran its ~50-job matrix on this exact SHA. Reading that
