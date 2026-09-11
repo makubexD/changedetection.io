@@ -15,6 +15,7 @@ to deploy. **You only ever need one of them.** Pick by what you are doing:
 
 | I want to… | Go to |
 | --- | --- |
+| set up a machine from scratch, in order | [`../fork/NEW-MACHINE.md`](../fork/NEW-MACHINE.md) — do this **first**, it sets the git identity before you can commit as the wrong account |
 | get it running on Windows, fastest | [Windows setup](#windows-podman-desktop--wsl2) → `build.ps1`, `run.ps1` |
 | add Chrome so JS pages and prices work | [With a real Chrome browser](#with-a-real-chrome-browser) |
 | prove the whole thing actually works | [TESTING.md](TESTING.md) |
