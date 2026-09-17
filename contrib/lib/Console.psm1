@@ -29,4 +29,45 @@ function New-Refusal([string]$Problem, [string]$Fix) {
     return $text
 }
 
-Export-ModuleMember -Function Write-Stage, Write-Pass, Write-Warn, Write-Fail, New-Refusal
+# Was this error a deliberate refusal, or did something genuinely break?
+#
+# Worth telling apart because the two deserve OPPOSITE treatment: a refusal
+# should be printed as written and nothing else, while a fault is only useful
+# with its file, line and stack attached. Prettifying both would hide real bugs
+# behind a friendly sentence.
+#
+# `throw "some text"` is the shape every refusal in this CLI uses, and it sets
+# TargetObject to that same string. Nothing else does: a null-dereference, a bad
+# cast, a thrown exception OBJECT, divide-by-zero and command-not-found all leave
+# TargetObject null, and Get-Content on a missing path sets it to the PATH, which
+# is why the message is compared too rather than merely tested for being a string.
+function Test-IsRefusal($ErrorRecord) {
+    return ($ErrorRecord.TargetObject -is [string]) -and
+           ($ErrorRecord.Exception.Message -ceq [string]$ErrorRecord.TargetObject)
+}
+
+# PowerShell will not print a multi-line refusal legibly, whichever $ErrorView is
+# set: ConciseView folds the newlines into one row -- so a message written as
+# problem / fix / detail arrives as a run-on sentence with the fix buried in the
+# middle of it -- and NormalView keeps them but adds CategoryInfo and
+# FullyQualifiedErrorId on top. So the message is printed here instead.
+#
+# The first line takes the FAIL shape every other failure in this CLI uses. The
+# rest go out VERBATIM: they already carry the author's own indent ('  fix: ...'),
+# and re-indenting them to line up under the header would destroy the one visual
+# cue that marks the fix.
+function Write-Refusal([string]$Name, [string]$Message) {
+    # @() because -split on a single-line message returns a STRING, and indexing
+    # a string walks its characters.
+    $lines = @($Message -split "`r?`n")
+    Write-Fail $Name $lines[0]
+    # Guarded, not $lines[1..($lines.Count-1)]: on a one-line message that range
+    # is 1..0, which PowerShell counts DOWNWARDS and so prints line 0 a second
+    # time. Every single-line refusal in the CLI would have doubled.
+    for ($i = 1; $i -lt $lines.Count; $i++) {
+        Write-Host $lines[$i] -ForegroundColor Red
+    }
+}
+
+Export-ModuleMember -Function Write-Stage, Write-Pass, Write-Warn, Write-Fail, `
+                              New-Refusal, Test-IsRefusal, Write-Refusal

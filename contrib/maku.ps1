@@ -31,6 +31,9 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot 'lib\Repo.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'lib\Cli.psm1') -Force
+# For Test-IsRefusal / Write-Refusal at the dispatch below. Commands import this
+# themselves too; -Force makes the repeat harmless.
+Import-Module (Join-Path $PSScriptRoot 'lib\Console.psm1') -Force
 Use-NativeExitCodes
 
 $CommandRoot = Join-Path $PSScriptRoot 'commands'
@@ -126,5 +129,25 @@ try {
 $positional = $bound.Positional
 $named      = $bound.Named
 
-& $script @positional @named
-exit $LASTEXITCODE
+# Commands refuse by throwing, and PowerShell renders a thrown message badly
+# enough to defeat the point of writing one -- see Write-Refusal. Catching it
+# HERE rather than in each command is what makes every refusal in the CLI look
+# the same, including ones added later, and it extends what this file already
+# does a few lines above for argument-binding errors.
+try {
+    & $script @positional @named
+    exit $LASTEXITCODE
+} catch {
+    if (Test-IsRefusal $_) {
+        Write-Refusal "$Resource $Action" $_.Exception.Message
+    } else {
+        # Deliberately NOT prettified. The file, line and stack are the entire
+        # value of an unexpected fault, and a friendly sentence would discard
+        # exactly the part that makes it fixable.
+        Write-Host "$Resource $Action failed unexpectedly -- this is a bug in the CLI." -ForegroundColor Red
+        Write-Host ($_ | Out-String)
+    }
+    # 1, the same code an uncaught throw already produced, so anything gating on
+    # it is unaffected. 2 stays the usage-error code used above.
+    exit 1
+}

@@ -42,16 +42,31 @@ Import-Module (Join-Path $PSScriptRoot '..\..\lib\Images.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\..\lib\Console.psm1') -Force
 
 Test-PodmanReady
-$n     = Get-PodmanNames
+$n = Get-PodmanNames
+
+# Asked BEFORE the line below, which needs $Image to still mean what the caller
+# typed. PowerShell variable names are case-INSENSITIVE, so $image and $Image are
+# one variable: assigning the default to $image overwrites the parameter, and
+# anything downstream testing $Image would find it always set.
+$imageWasGiven = [bool]$Image
+
 $image = if ($Image) { $Image } else { Get-ImagePin 'AppLocal' }
 
 # BEFORE Remove-Stack: a run that cannot succeed must not first tear down the
 # deployment that was working. A mistyped -Image is the ordinary way to get here.
 & podman image exists $image
 if ($LASTEXITCODE -ne 0) {
-    throw ("the image '$image' does not exist, so there is nothing to start." + [Environment]::NewLine +
-           "  fix: .\contrib\maku.ps1 app build" + [Environment]::NewLine +
-           "  (or pass -Image to run a published one instead)")
+    # The fix depends on WHICH image is missing. Offering '-Image' to someone who
+    # just passed -Image reads as though the command did not notice what they
+    # typed -- and the actual mistake there is almost always the name itself.
+    $fix = if ($imageWasGiven) {
+        "  fix: check the name, or pull it first:  podman pull $image"
+    } else {
+        "  fix: .\contrib\maku.ps1 app build" + [Environment]::NewLine +
+        "  (or pass -Image to run a published one instead)"
+    }
+    throw ("the image '$image' does not exist, so there is nothing to start." +
+           [Environment]::NewLine + $fix)
 }
 
 Remove-Stack @($n.App, $n.Browser) $n.Pod

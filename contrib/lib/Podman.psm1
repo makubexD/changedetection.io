@@ -30,11 +30,15 @@ function Test-PodmanReady {
     # "term is not recognized" instead of a sentence telling them what to install.
     if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
         throw ("podman is not installed, or not on PATH." + [Environment]::NewLine +
-               "  fix: see contrib/podman/VERIFY.md -- Prerequisites")
+               "  fix: install it -- contrib/fork/SETUP.md step 1")
     }
     & podman --version 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "podman is installed but did not run. See contrib/podman/VERIFY.md."
+        # Names the command rather than a document. A reader who has to go and
+        # look something up is one step further from running again than a reader
+        # who can paste the next line.
+        throw ("podman is installed but did not run." + [Environment]::NewLine +
+               "  fix: podman machine start")
     }
     Assert-PodmanResponds
 }
