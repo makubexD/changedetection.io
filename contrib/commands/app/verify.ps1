@@ -191,6 +191,30 @@ try {
         Write-Host "      python said: $said"
     }
 
+    # The second runtime patch, in the same two steps and for the same reason.
+    # That the module loads from the mount and answers correctly is provable
+    # outright; that it reached the application's OWN fetcher class is the part
+    # nothing else can see, and is therefore best effort rather than fatal.
+    $validator = Get-RuntimeValue 'import maku_conditional_fetch as m' `
+                                  'm.pick_validators({"etag": "abc"}).get("If-None-Match")'
+    if ($validator -ne 'abc') {
+        Stop-Verify 'runtime' ("maku_conditional_fetch turned an ETag of abc into '$validator' -- " +
+                               "expected it back verbatim as If-None-Match.")
+    }
+    Write-Pass 'runtime' 'conditional-fetch module loaded'
+
+    $wrapped = Get-ContainerPythonValue $container 'import changedetectionio.content_fetchers.requests as r' `
+                                        "getattr(r.fetcher._run_sync, '_maku_conditional', False)"
+    if ($wrapped.Value -eq 'True') {
+        Write-Pass 'runtime' 'the plain fetcher revalidates before downloading'
+    } else {
+        $said = if ($null -eq $wrapped.Value) { $wrapped.Output } else { "'$($wrapped.Value)'" }
+        Write-Warn 'runtime' 'could not confirm the conditional-fetch patch on the live fetcher.'
+        Write-Host "      Not a failure, and nothing is broken if it is absent: an unpatched"
+        Write-Host "      fetcher simply downloads every page, exactly as upstream does."
+        Write-Host "      python said: $said"
+    }
+
     if ($WithBrowser) {
         # Checked from INSIDE the app container, which is the connection that
         # matters. Testing it from the host would prove nothing: port 3000 is

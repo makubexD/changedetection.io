@@ -188,6 +188,29 @@ stopped. A run that changed nothing says that as well — which is the line wort
 having when something did not take effect and you need to know whether this
 command was the reason.
 
+## The fork's runtime patches
+
+Two changes to how the application behaves ship as a **read-only mount** of
+`contrib/runtime/` plus `PYTHONPATH`, and not as edits to any file upstream owns.
+Python imports `sitecustomize` by itself at interpreter start, which is the whole
+installation; remove the mount and the app is stock.
+
+| Patch | What it changes | Off switch |
+| --- | --- | --- |
+| Price decimals | the watch-list column rounds to 2 dp and loses a rate like `3.3715`. The stored value never did | remove the mount |
+| [Conditional requests](WATCHING.md#2-conditional-requests-this-fork-sends-them) | the plain HTTP fetcher offers back the last `ETag`/`Last-Modified`, and a **304** means the page it already holds is re-used instead of downloaded | `MAKU_CONDITIONAL_FETCH=0` |
+
+Neither is visible in the UI, so both are asserted by
+[`app verify`](VERIFY.md) rather than taken on trust, and their own tests run on
+any machine with Python — no container, no dependencies:
+
+```powershell
+python contrib/runtime/test_format.py
+python contrib/runtime/test_hook.py
+python contrib/runtime/test_conditional_fetch.py
+python contrib/runtime/test_probe.py
+```
+
 ## Linux: Quadlet (systemd)
 
 The deployment path with no compose dependency at all.

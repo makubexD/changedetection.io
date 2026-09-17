@@ -1,13 +1,18 @@
-"""The post-import hook, driven against a DUMMY changedetectionio.flask_app.
+"""The post-import hook, driven against DUMMY changedetectionio modules.
 
-The real module cannot be imported here -- this machine has no Flask and no
+The real ones cannot be imported here -- this machine has no Flask and no
 changedetectionio dependencies -- and that is fine, because what needs proving
-is the hook's behaviour, not Flask's. A stand-in with the one attribute the
+is the hook's behaviour, not Flask's. A stand-in carrying the one attribute each
 patch touches exercises every path.
 
-The fourth case is the one that matters most. The patch runs AFTER the module
-has already executed successfully. If it were allowed to raise there, a mistake
-in a cosmetic filter would stop the application from starting at all.
+TWO TARGETS NOW, imported at different moments, which is the reason the finder
+counts what is left instead of standing down on its first hit. A finder that
+retired after flask_app would leave the second patch permanently uninstalled,
+and nothing in the running application would look wrong.
+
+The last case is the one that matters most. A patch runs AFTER its module has
+already executed successfully. If it were allowed to raise there, a mistake in a
+cosmetic filter would stop the application from starting at all.
 """
 
 import os
@@ -32,6 +37,15 @@ app = _App()
 EXECUTED = True
 '''
 
+FAKE_FETCHER = '''
+class fetcher:
+    def _run_sync(self, url=None, timeout=None, request_headers=None,
+                  request_body=None, request_method=None, **kwargs):
+        return 'ORIGINAL'
+
+EXECUTED = True
+'''
+
 failures = []
 
 
@@ -46,9 +60,12 @@ def check(label, condition, detail=''):
 root = tempfile.mkdtemp(prefix='gid-hook-test-')
 try:
     pkg = os.path.join(root, 'changedetectionio')
-    os.makedirs(pkg)
+    fetchers = os.path.join(pkg, 'content_fetchers')
+    os.makedirs(fetchers)
     open(os.path.join(pkg, '__init__.py'), 'w').write('')
     open(os.path.join(pkg, 'flask_app.py'), 'w').write(FAKE_APP)
+    open(os.path.join(fetchers, '__init__.py'), 'w').write('')
+    open(os.path.join(fetchers, 'requests.py'), 'w').write(FAKE_FETCHER)
     open(os.path.join(root, 'unrelated_module.py'), 'w').write('VALUE = 42\n')
     sys.path.insert(0, root)
 
@@ -69,11 +86,22 @@ try:
           callable(installed) and installed(3.3715) in ('3.3715', '3,3715'),
           f'not callable: {installed!r}' if not callable(installed) else '')
 
-    # 3: it stood down, so nothing is left wrapping imports afterwards.
-    check('the finder removed itself once it fired',
+    # 3: one target down, one to go -- so it must still be armed.
+    armed = [f for f in sys.meta_path if isinstance(f, sitecustomize._PatchAfterImport)]
+    check('it stays installed while a second target is still unimported',
+          len(armed) == 1 and 'changedetectionio.flask_app' not in armed[0].remaining,
+          f'{[f.remaining for f in armed]}')
+
+    # 4: the second patch, and only then does the finder retire.
+    from changedetectionio.content_fetchers import requests as fake_fetchers
+    check('the fetcher module executed normally', getattr(fake_fetchers, 'EXECUTED', False))
+    check('and its fetch method was wrapped',
+          getattr(fake_fetchers.fetcher._run_sync, '_maku_conditional', False),
+          'the conditional-fetch patch did not reach it')
+    check('the finder removed itself once EVERY target had fired',
           not any(isinstance(f, sitecustomize._PatchAfterImport) for f in sys.meta_path))
 
-    # 4: a patch that throws must not take the import down with it.
+    # 5: a patch that throws must not take the import down with it.
     #
     # Purge the PACKAGE too, not just the submodule. `from changedetectionio
     # import flask_app` resolves the package attribute first, so dropping only
@@ -82,10 +110,16 @@ try:
     # ever exercising the thing it names.
     for name in ('changedetectionio.flask_app', 'changedetectionio'):
         sys.modules.pop(name, None)
-    original_apply = sitecustomize.apply_to
-    sitecustomize.apply_to = lambda module: (_ for _ in ()).throw(RuntimeError('boom'))
+
+    def boom(module):
+        raise RuntimeError('boom')
+
+    # Armed with an explicit table rather than by monkeypatching the module:
+    # PATCHES holds the function OBJECT, so replacing the name in the module
+    # would leave the finder calling the original and this case would pass
+    # without ever running a failing patch.
     try:
-        sitecustomize._PatchAfterImport().install()
+        sitecustomize._PatchAfterImport({'changedetectionio.flask_app': boom}).install()
         import importlib
         reimported = importlib.import_module('changedetectionio.flask_app')
         check('a raising patch does NOT break the import',
@@ -95,8 +129,6 @@ try:
               reimported.app.jinja_env.filters['format_number_locale'] == 'ORIGINAL')
     except Exception as e:
         check('a raising patch does NOT break the import', False, f'{type(e).__name__}: {e}')
-    finally:
-        sitecustomize.apply_to = original_apply
 finally:
     shutil.rmtree(root, ignore_errors=True)
 

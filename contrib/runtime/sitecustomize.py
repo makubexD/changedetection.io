@@ -1,6 +1,14 @@
 """Fork-local runtime patches, installed without editing a single upstream file.
 
-WHY THIS FILE EXISTS AT ALL. The watchlist rounds every price to two decimals --
+TWO PATCHES LIVE HERE, and they are unrelated to each other:
+
+  1. the watchlist's price column, which rounds away real precision -- below;
+  2. conditional requests on the plain HTTP fetcher, so an unchanged page is not
+     downloaded again -- maku_conditional_fetch.py, which explains itself.
+
+Both are installed the same way and for the same reason: see HOW IT LOADS.
+
+WHY THE FIRST ONE EXISTS AT ALL. The watchlist rounds every price to two decimals --
 `locale.format_string("%.2f", ...)` in changedetectionio/flask_app.py -- so a
 currency rate of 3.3715 is displayed as 3.37. The stored value and the
 notification tokens keep full precision; only that one column loses it.
@@ -32,8 +40,6 @@ reason the application does not start.
 """
 
 import sys
-
-TARGET = 'changedetectionio.flask_app'
 
 MIN_DECIMALS = 2
 MAX_DECIMALS = 6
@@ -76,11 +82,33 @@ def apply_to(module):
     module.app.jinja_env.filters['format_number_locale'] = format_number_locale
 
 
+def apply_conditional_fetch(module):
+    """Teach the plain-HTTP fetcher to ask "has it changed?" before downloading.
+
+    Imported HERE rather than at the top of this file, which runs in every Python
+    process in the container. Nothing is loaded until the module it patches is
+    actually being imported, so pip and the entrypoint never pay for it.
+    """
+    import maku_conditional_fetch
+    maku_conditional_fetch.install(module)
+
+
+# Every patch this fork installs, by the module that has to exist first. A second
+# entry is why the finder below counts what is left rather than standing down on
+# its first hit -- the two targets are imported at different moments, and
+# flask_app is usually first.
+PATCHES = {
+    'changedetectionio.flask_app': apply_to,
+    'changedetectionio.content_fetchers.requests': apply_conditional_fetch,
+}
+
+
 class _PatchingLoader:
     """Delegates everything, then runs the patch once the module is populated."""
 
-    def __init__(self, inner):
+    def __init__(self, inner, patch):
         self._inner = inner
+        self._patch = patch
 
     def create_module(self, spec):
         return self._inner.create_module(spec)
@@ -88,11 +116,12 @@ class _PatchingLoader:
     def exec_module(self, module):
         self._inner.exec_module(module)
         try:
-            apply_to(module)
+            self._patch(module)
         except Exception:
             # Deliberately swallowed. The import has already SUCCEEDED by this
-            # point; letting a cosmetic patch raise here would turn a working
-            # application into one that does not boot, over decimal places.
+            # point; letting one of these raise here would turn a working
+            # application into one that does not boot, over decimal places or a
+            # saved round trip.
             pass
 
     def __getattr__(self, name):
@@ -100,10 +129,16 @@ class _PatchingLoader:
 
 
 class _PatchAfterImport:
-    """Claims exactly one module name, and only to wrap whoever really loads it."""
+    """Claims a few module names, and only to wrap whoever really loads them."""
+
+    def __init__(self, patches=None):
+        # A copy, so firing one target cannot mutate the table the next process
+        # reads -- and so a test can arm this with a target of its own.
+        self.remaining = dict(patches if patches is not None else PATCHES)
 
     def find_spec(self, fullname, path=None, target=None):
-        if fullname != TARGET:
+        patch = self.remaining.get(fullname)
+        if patch is None:
             return None
         try:
             start = sys.meta_path.index(self) + 1
@@ -116,10 +151,13 @@ class _PatchAfterImport:
             spec = find_spec(fullname, path, target)
             if spec is None or spec.loader is None:
                 continue
-            # Found the real loader. Stand down so a re-import costs nothing,
-            # and hand back the same spec with a wrapped loader.
-            self.uninstall()
-            spec.loader = _PatchingLoader(spec.loader)
+            # Found the real loader. Drop this target before handing the spec
+            # back, so a re-import costs nothing, and stand down entirely once
+            # every target has been claimed.
+            self.remaining.pop(fullname, None)
+            if not self.remaining:
+                self.uninstall()
+            spec.loader = _PatchingLoader(spec.loader, patch)
             return spec
         return None
 
@@ -134,10 +172,20 @@ class _PatchAfterImport:
 
 
 def install():
-    if TARGET in sys.modules:
-        apply_to(sys.modules[TARGET])
-        return
-    _PatchAfterImport().install()
+    pending = {}
+    for name, patch in PATCHES.items():
+        # Already imported -- there is no import left to hook, so patch it where
+        # it stands. Each one is guarded separately: one patch failing must not
+        # cost the others their installation.
+        if name in sys.modules:
+            try:
+                patch(sys.modules[name])
+            except Exception:
+                pass
+        else:
+            pending[name] = patch
+    if pending:
+        _PatchAfterImport(pending).install()
 
 
 try:

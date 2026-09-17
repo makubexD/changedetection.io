@@ -6,13 +6,14 @@ the same price parser the Conditions tab uses. A re-implementation on the host
 would be a second opinion that can drift from the first, and the whole value of
 this tool is that it cannot disagree with the app.
 
-IT PRINTS THREE THINGS, ALWAYS, even when they are empty. Each one is a distinct
+IT PRINTS FOUR THINGS, ALWAYS, even when they are empty. Each one is a distinct
 way a watch goes wrong, and the empty case is the diagnosis far more often than
 the populated one:
 
   1. which fetcher got the bytes, and what came back
   2. what 'Restock & Price' mode would find -- INDEPENDENTLY of any filter
   3. what the filter matched, and the number a Condition would extract from it
+  4. whether this URL can be polled cheaply, which is what decides the interval
 
 Point 2 is the one that is not obvious from the UI. The restock processor reads
 the whole page's structured data and never looks at the watch's filter, so a page
@@ -77,17 +78,25 @@ def ensure_app_importable():
             "  fix: .\\contrib\\maku.ps1 site probe -Url <url>".format(APP_ROOT, e))
 
 
+USER_AGENT = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+              'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36')
+
+
 def fetch(url, timeout, with_browser):
-    """Return (content, status, seconds, fetcher_label)."""
+    """Return (content, status, seconds, fetcher_label, response_headers).
+
+    The headers come back because the cheap-polling question below is answered
+    from them, and re-fetching the page to read them would be a second opinion on
+    a page that may have changed in between. A browser fetch has none to give.
+    """
     started = time.time()
     if with_browser:
         content, status = _fetch_with_browser(url, timeout)
-        return content, status, time.time() - started, 'Chrome (Playwright)'
+        return content, status, time.time() - started, 'Chrome (Playwright)', None
     import requests
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                             'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'}
-    response = requests.get(url, headers=headers, timeout=timeout)
-    return response.text, response.status_code, time.time() - started, 'plain HTTP (no browser)'
+    response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=timeout)
+    return (response.text, response.status_code, time.time() - started,
+            'plain HTTP (no browser)', response.headers)
 
 
 def _fetch_with_browser(url, timeout):
@@ -242,6 +251,92 @@ def report_extracted_number(text):
     warn_if_grouped(text, amount)
 
 
+def describe_conditional(validators, head_status):
+    """The cheap-polling verdict, as lines, from facts already collected.
+
+    Split out from the requests below because this is the part with an opinion in
+    it, and an opinion is worth testing. The three outcomes are genuinely
+    different advice, and only the first one makes a short interval affordable.
+    """
+    if not validators:
+        return ['  the server sends neither ETag nor Last-Modified.',
+                '  -> every check downloads the whole page. Keep the interval long, or',
+                '     point the watch at something smaller -- see "A cheaper URL" in',
+                '     contrib/podman/WATCHING.md.']
+    named = ' and '.join(sorted(validators))
+    if head_status == 304:
+        return [f'  {named} -- and a conditional request came back 304 Not Modified.',
+                '  -> SUPPORTED. This fork re-uses the page it already has instead of',
+                '     downloading it again, so an unchanged page costs a reply with no',
+                '     body. A short interval is affordable here.']
+    if head_status == 200:
+        return [f'  {named} -- but a conditional request came back 200, not 304.',
+                '  -> the server advertises a validator and then ignores it. Every check',
+                '     downloads the whole page; treat this as the no-validator case.']
+    if head_status is None:
+        return [f'  {named} -- but the conditional request could not be made at all.',
+                '  -> nothing proven either way. Re-run; if it persists, assume every',
+                '     check downloads the page.']
+    return [f'  {named} -- but a conditional HEAD answered {head_status}.',
+            '  -> this server does not answer HEAD requests, which is how the saving is',
+            '     collected. Every check downloads the whole page.']
+
+
+def report_conditional_support(url, timeout, response_headers):
+    """Can this URL be polled cheaply, and therefore often?
+
+    THE SAME RULE THE PATCH USES, imported from it rather than restated, so this
+    cannot advertise a saving the runtime patch would not actually take.
+    """
+    print()
+    print('Cheap polling (conditional requests):')
+    try:
+        from maku_conditional_fetch import pick_validators
+    except ImportError:
+        print('  cannot answer -- maku_conditional_fetch is not on the path, so this is')
+        print('  running outside the container. Use: .\\contrib\\maku.ps1 site probe')
+        return
+
+    headers = response_headers
+    if headers is None:
+        # A browser fetch gave us no headers. The saving only ever applies to the
+        # plain fetcher anyway, so ask plain HTTP directly and say so.
+        print('  (asked over plain HTTP -- a browser fetch runs JavaScript and can never')
+        print('   be answered from a cache, whatever the server sends)')
+        headers = _plain_headers(url, timeout)
+
+    validators = pick_validators(headers)
+    for line in describe_conditional(validators, _conditional_head(url, timeout, validators)):
+        print(line)
+
+
+def _plain_headers(url, timeout):
+    import requests
+    try:
+        return requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=timeout).headers
+    except Exception:
+        return {}
+
+
+def _conditional_head(url, timeout, validators):
+    """The status a real conditional request gets, or None when it could not be sent.
+
+    ASKED, NOT ASSUMED. Plenty of servers emit an ETag and then ignore it, and a
+    verdict read off the response headers alone would call those sites cheap and
+    be wrong on every check afterwards.
+    """
+    if not validators:
+        return None
+    import requests
+    headers = {'User-Agent': USER_AGENT}
+    headers.update(validators)
+    try:
+        return requests.head(url, headers=headers, timeout=timeout,
+                             allow_redirects=False).status_code
+    except Exception:
+        return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', required=True)
@@ -253,7 +348,7 @@ def main():
     ensure_app_importable()
 
     try:
-        content, status, seconds, fetcher = fetch(args.url, args.timeout, args.with_browser)
+        content, status, seconds, fetcher, headers = fetch(args.url, args.timeout, args.with_browser)
     except Exception as e:
         print(f'Fetch failed: {type(e).__name__}: {e}')
         print('A watch on this URL would fail the same way.')
@@ -264,6 +359,7 @@ def main():
     report_structured_prices(content)
     report_ldjson_offers(content)
     report_selector(content, args.selector)
+    report_conditional_support(args.url, args.timeout, headers)
     return 0
 
 

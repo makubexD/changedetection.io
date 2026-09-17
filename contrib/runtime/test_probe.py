@@ -131,6 +131,33 @@ check('and it shows both numbers, so the reader can see the jump',
 out = captured(probe.warn_if_grouped, '3.3725', Decimal('3.3725'))
 check('a correctly parsed number gets no warning at all', out == '', repr(out))
 
+# --- the cheap-polling verdict ----------------------------------------------
+#
+# Three outcomes that look alike in the headers and mean opposite things for the
+# interval. The middle one is why the probe sends a real conditional request
+# instead of reading the verdict off the response headers.
+
+supported = '\n'.join(probe.describe_conditional({'If-None-Match': '"v"'}, 304))
+check('a 304 is reported as supported, in those words', 'SUPPORTED' in supported, supported)
+check('and it says a short interval is affordable',
+      'short interval' in supported, supported)
+
+ignored = '\n'.join(probe.describe_conditional({'If-None-Match': '"v"'}, 200))
+check('a validator the server IGNORES is not sold as a saving',
+      'SUPPORTED' not in ignored and 'ignores it' in ignored, ignored)
+
+none = '\n'.join(probe.describe_conditional({}, None))
+check('no validator at all -> every check downloads, and it says what to do instead',
+      'neither ETag nor Last-Modified' in none and 'WATCHING.md' in none, none)
+
+refused = '\n'.join(probe.describe_conditional({'If-Modified-Since': 'then'}, 405))
+check('a server that refuses HEAD is named as such, with its status',
+      '405' in refused and 'SUPPORTED' not in refused, refused)
+
+unasked = '\n'.join(probe.describe_conditional({'If-None-Match': '"v"'}, None))
+check('a request that could not be made proves NOTHING, and says so',
+      'nothing proven' in unasked and 'SUPPORTED' not in unasked, unasked)
+
 print()
 print(f"{'FAILED' if failures else 'PASSED'} -- {len(failures)} failure(s)")
 sys.exit(1 if failures else 0)
