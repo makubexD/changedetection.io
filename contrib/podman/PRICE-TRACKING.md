@@ -102,6 +102,22 @@ product data: `<script type="application/ld+json">`, microdata `itemprop`
 attributes, and OpenGraph `product:price:amount`. Whether the price is on screen
 is irrelevant; whether it is in that metadata is the whole game.
 
+**And it never reads your filter.** This is the part that costs people an
+afternoon. The processor is handed the whole page — `self.fetcher.content` in
+`processors/restock_diff/processor.py` — and `include_filters` appears nowhere in
+it. So in Restock mode a CSS selector changes **nothing at all** about the number
+on the row. Two watches on the same URL with different filters must report the
+same price, and always will.
+
+The fastest way to see all of this at once, before touching the UI:
+
+```powershell
+.\contrib\maku.ps1 site probe -Url <the page> -Selector '<your css>'
+```
+
+It runs inside the container using the app's own extractor, and prints what
+Restock mode would find, independently of what your selector matched.
+
 So a restock watch that is not showing a price is in one of three states, and
 the badge on the watch row tells you which:
 
@@ -122,6 +138,50 @@ sidebar — **Queue 0 / Checking now: 1** means the fetch is running right now, 
 the site is being slow or is refusing to answer. Some retailers accept a browser
 from a residential IP and silently never respond to anything else, in which case
 the fetch runs until it times out and the row never leaves `Fetching…`.
+
+### The other failure: a price IS shown, and it is the wrong one
+
+The three states above all look like failures. This one does not, which is what
+makes it expensive: the row shows a price, `In stock`, and a change arrow, and
+everything about it reads as working.
+
+It happens when the page is **not a shop**. `Restock & Price` is built for a page
+with one product, and it will happily find a `price` in any schema.org offer —
+including an offer describing something other than the thing you are watching. A
+currency exchange that publishes its sell rate inside a `MobileApplication`
+offer, a site advertising its own app, a booking page quoting a "from" fare: all
+of them yield a number, and none of them yield *your* number.
+
+The tell is one of these:
+
+- the price never matches what you read on the page, and is not a rounding or
+  currency-separator error;
+- two watches on the same URL with different filters report the **same** number;
+- the number is one of several figures on the page and you cannot influence
+  which one.
+
+**Confirm it in one command**, rather than by changing settings and rechecking:
+
+```powershell
+.\contrib\maku.ps1 site probe -Url <the page>
+```
+
+If it prints a single published offer and that offer is not the figure you want,
+no filter and no setting will fix it. The page does not publish your number.
+
+**The fix is to change the processor, not the filter:**
+
+1. **Edit → General → Processor** → **Webpage Text/HTML, JSON and PDF changes**.
+   The price badge goes away; the watch starts diffing text.
+2. **Edit → Filters & Triggers → CSS/JSONPath/JQ/XPath Filter** → a selector for
+   the exact element holding your number. `site probe -Selector '<css>'` shows
+   what it will keep, before you save it.
+3. **Save → Recheck → Preview.** The preview must contain *only* the number.
+4. For threshold alerts, add a **Condition** — *Extracted number after
+   'Filters & Triggers'* — `<` or `>` your value.
+
+A worked example, with the selectors, is `tucambista.pe` in
+[SITE-NOTES.md](SITE-NOTES.md#tucambistape).
 
 ### The manual route
 
@@ -204,6 +264,17 @@ the global default applies to everything otherwise.
 
 ## 7. Troubleshooting
 
+**Start here for any new page**, before reading the table — it answers most of it
+in one shot, from inside the container, using the app's own extraction code:
+
+```powershell
+.\contrib\maku.ps1 site probe -Url <the page> -Selector '<css, optional>'
+```
+
+It always reports three things, and the *empty* answer is usually the diagnosis:
+which fetcher got the bytes, what Restock mode would find regardless of any
+filter, and what your selector actually matched.
+
 | Symptom | Likely cause and fix |
 | --- | --- |
 | Price column empty, no error | No structured data on the page → section 3 (Visual Filter Selector + `extracted_number`). |
@@ -219,7 +290,9 @@ the global default applies to everything otherwise.
 | `403` / `503` / CAPTCHA | The site is blocking automated access. Increase the interval first. Some sites will not be watchable at all. |
 | No response at all — the fetch hangs until it times out | Harsher than a `403`: some WAFs simply never answer a client they distrust, so there is no status code to read. Test it from outside the app: `curl -sS -m 30 -o /dev/null -w '%{http_code} %{time_total}s
 ' -A 'Mozilla/5.0' '<the product URL>'`. A reset connection or 30s with no bytes means the site, not your setup. |
-| Price detected but wrong (e.g. 10x) | Currency/decimal separator ambiguity, or you captured a "was" price. Check the Preview text and tighten the filter to the current price element. |
+| Price detected but wrong, in **text** mode | Currency/decimal separator ambiguity, or you captured a "was" price. Check the Preview text and tighten the filter to the current price element. |
+| Price detected but wrong, in **Restock & Price** mode | **Do not tighten the filter — it is not read in this mode.** Either the page publishes a different figure than the one you want, or it is not a shop page at all. Run `maku.ps1 site probe -Url <page>` to see every offer it publishes, then [section 3](#3-when-the-price-is-not-detected-automatically). |
+| Two watches on one URL report the same price | Same cause, and it is conclusive: Restock mode reads the whole page and ignores per-watch filters. Change the processor, not the selector. |
 
 ---
 
@@ -230,11 +303,15 @@ with every label quoted as the app shows it, use the per-site guides:
 
 | Site | Guide |
 | --- | --- |
+| tucambista.pe | [SITE-NOTES.md](SITE-NOTES.md#tucambistape) |
 | tous.com | [SITE-NOTES.md](SITE-NOTES.md#touscom) |
 | amazon.com | [SITE-NOTES.md](SITE-NOTES.md#amazoncom) |
 
-Both start with the same Step 0 — proving Chrome is actually connected — because
-that is where this usually goes wrong.
+The two shops start with the same Step 0 — proving Chrome is actually connected —
+because that is where this usually goes wrong. **tucambista.pe is the odd one
+out** and worth reading even if you do not watch it: it is not a shop, it needs
+no browser, and it is the case where the price mode reports a number confidently
+and the number is not yours.
 
 ---
 

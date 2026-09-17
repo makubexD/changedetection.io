@@ -1,4 +1,4 @@
-# Site notes: TOUS and Amazon
+# Site notes: tucambista, TOUS and Amazon
 
 The technique is the same for every shop and lives in
 [`PRICE-TRACKING.md`](PRICE-TRACKING.md) — follow that first. This page is only
@@ -32,6 +32,64 @@ other tab.
 > labels, same order, same wording. They are diagrams rather than captured
 > screenshots, so they stay readable in both GitHub themes and can be diffed
 > when the UI moves.
+
+---
+
+## tucambista.pe
+
+**Not a shop.** It is a currency exchange, and it is here because it is the
+worked example of the failure that does not look like one — read
+[`PRICE-TRACKING.md` §3](PRICE-TRACKING.md#3-when-the-price-is-not-detected-automatically),
+"The other failure", first.
+
+**Do not use `Restock & Price` on this page.** The site publishes exactly one
+`price` in its structured data — `3.3715 PEN`, its **Venta** rate — and it sits
+inside a `MobileApplication` / `SoftwareApplication` offer describing the
+TuCambista app, not the exchange rate. Restock mode finds it, shows it, and
+attaches a change arrow to it. Everything looks healthy.
+
+Two consequences, both permanent:
+
+- The **Compra** rate is in the page's HTML but in **no** structured-data block,
+  so Restock mode can never report it, under any filter.
+- Two watches here — one "Compra", one "Venta" — report the *same* number,
+  because the processor reads the whole page and ignores each watch's filter.
+
+**No browser needed.** Both rates are in the server-rendered HTML, so the
+**Basic fast Plaintext/HTTP Client** fetcher is enough. Chrome costs memory and
+latency here and buys nothing.
+
+### The working setup
+
+One watch per rate, both on `https://tucambista.pe`:
+
+| | |
+| --- | --- |
+| **Processor** | Webpage Text/HTML, JSON and PDF changes |
+| **Fetch Method** | Basic fast Plaintext/HTTP Client |
+
+| Rate | CSS/JSONPath/JQ/XPath Filter |
+| --- | --- |
+| **Compra** | `.tc-quote-rates button:nth-of-type(1) .tc-quote-rate-value span:first-child` |
+| **Venta** | `.tc-quote-rates button:nth-of-type(2) .tc-quote-rate-value` |
+
+Compra needs the trailing `span:first-child`; its value element also carries a
+`--` reference span, so without it the watch diffs `3.348--`. Venta's does not.
+
+Confirm both before saving, rather than by rechecking and squinting at the row:
+
+```powershell
+.\contrib\maku.ps1 site probe -Url https://tucambista.pe `
+  -Selector '.tc-quote-rates button:nth-of-type(1) .tc-quote-rate-value span:first-child'
+```
+
+**Do not key a selector on `data-selected`.** Both rate buttons carry it and it
+flips when the widget is clicked, so a filter built on it silently starts
+matching the other rate.
+
+**The markup is the fork's only hold on this page**, and it is a marketing site
+that can be redesigned without warning. When a watch here goes quiet or starts
+diffing the wrong thing, re-run `site probe` before assuming the app broke.
 
 ---
 

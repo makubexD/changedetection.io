@@ -160,6 +160,27 @@ function Start-BrowserContainer([string]$Name, [string]$Pod) {
     if ($LASTEXITCODE -ne 0) { throw "podman run (browser) failed (exit $LASTEXITCODE)." }
 }
 
+# contrib/runtime holds the fork's runtime patches and the probe script, and the
+# container cannot see them any other way: the Dockerfile copies the application
+# paths and nothing else, so everything under contrib/ is absent from the image.
+# A read-only mount plus PYTHONPATH is the whole installation.
+#
+# PREPENDED to /usr/local, never replacing it. The image already sets
+# ENV PYTHONPATH=/usr/local (Dockerfile:140) and overwriting that breaks imports
+# the application needs.
+#
+# This is the mechanism that keeps the fork's ONE patched upstream file at one.
+# A runtime override lives in a file upstream does not have, so it can never
+# conflict with a merge, and pulling the mount returns the container to stock.
+function Get-RuntimeMountArgs {
+    $runtime = Join-Path (Split-Path $PSScriptRoot -Parent) 'runtime'
+    if (-not (Test-Path (Join-Path $runtime 'sitecustomize.py'))) { return @() }
+    # Forward slashes: podman's Windows client parses a drive-letter path more
+    # reliably this way, and the ':ro' suffix is unambiguous against 'C:'.
+    $mount = $runtime.Replace('\', '/')
+    return @('-v', "${mount}:/maku-runtime:ro", '-e', 'PYTHONPATH=/maku-runtime:/usr/local')
+}
+
 # Spec keys: Name, Image, Volume, Port, Pod, DriverUrl, Restart.
 # A single hashtable rather than seven parameters -- the caller reads as a
 # declaration of what it wants, and the signature stays within the limit.
@@ -176,6 +197,7 @@ function Start-AppContainer([hashtable]$Spec) {
     if ($Spec.Restart) { $podmanArgs += @('--restart', 'unless-stopped') }
 
     $podmanArgs += @('-v', "$($Spec.Volume):/datastore", '-e', "BASE_URL=http://localhost:$port")
+    $podmanArgs += Get-RuntimeMountArgs
 
     if ($Spec.DriverUrl) {
         # DEFAULT_FETCH_BACKEND makes NEW watches use Chrome. Without it the
@@ -230,6 +252,6 @@ function Get-ContainerEnv([string]$Container, [string]$Name) {
 }
 
 Export-ModuleMember -Function Get-PodmanNames, Test-PodmanReady, Build-Image, Remove-Stack,
-                              Get-ImageRevision,
+                              Get-ImageRevision, Get-RuntimeMountArgs,
                               New-AppPod, Start-BrowserContainer, Start-AppContainer,
                               Wait-ForHttp, Wait-ForExec, Get-ContainerEnv
