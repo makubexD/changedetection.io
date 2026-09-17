@@ -2,7 +2,12 @@
 
 How this fork is arranged, why, and what `fork sync` does about it.
 
-Who this clone commits as is a different subject: [`IDENTITY.md`](IDENTITY.md).
+Who this clone commits as is a different subject, and a different tool: `gid`.
+See [`SETUP.md`](SETUP.md) §2–4.
+
+One connection between the two is worth knowing: `master` is a mirror, so its
+commits are upstream authors', not yours. `git config --local gid.mirrorBranch
+master` is what stops the push guard refusing them.
 
 ## The branches
 
