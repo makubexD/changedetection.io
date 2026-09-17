@@ -7,6 +7,7 @@
 # not running the same browser. One definition each, here.
 
 Import-Module (Join-Path $PSScriptRoot 'Images.psm1')
+Import-Module (Join-Path $PSScriptRoot 'Console.psm1')
 
 $script:AppContainer     = 'changedetection'
 $script:BrowserContainer = 'browser-sockpuppet-chrome'
@@ -35,26 +36,68 @@ function Test-PodmanReady {
     if ($LASTEXITCODE -ne 0) {
         throw "podman is installed but did not run. See contrib/podman/VERIFY.md."
     }
-    & podman info 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw "podman info failed -- the machine is probably not running.`n  fix: podman machine start"
-    }
+    Assert-PodmanResponds
 }
+
+# 'podman info' is the first call that crosses into the machine, so it is where a
+# running-but-unreachable VM surfaces. Its stderr is the only thing that says
+# WHICH: a stopped machine, a connection pointing at one that no longer exists,
+# and an elevated shell looking at a different rootless socket all fail here and
+# are indistinguishable once the message is thrown away.
+#
+# An earlier version threw it away and asserted "the machine is probably not
+# running". That is a guess formatted as a diagnosis, and its fix line sends the
+# reader to run `podman machine start` -- which, when the machine IS running,
+# answers "already running" and leaves them with nothing to go on.
+function Assert-PodmanResponds {
+    $detail = (& podman info 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0) { return }
+    throw (New-Refusal "podman info failed (exit $LASTEXITCODE). podman said:`n$detail" `
+                       "podman machine list  --  and if it is running: podman system connection list")
+}
+
+# The commit a built image came from is stamped ON the image, because it is the
+# only place that survives. A deployment machine can pull, fail, be rebooted and
+# run again a week later; nothing outside the image remembers which source it was
+# built from, and asking git alone can only ever answer what MOVED, never what
+# was actually built. 'app update' reads this back to decide.
+$script:RevisionLabel = 'org.opencontainers.image.revision'
 
 function Build-Image([string]$Image, [switch]$NoCache) {
     $root = (& git rev-parse --show-toplevel).Trim()
-    $podmanArgs = @('build', '-t', $Image, '-f', (Join-Path $root 'Dockerfile'))
+    $head = (& git rev-parse HEAD).Trim()
+    $podmanArgs = @('build', '-t', $Image, '-f', (Join-Path $root 'Dockerfile'),
+                    '--label', "$script:RevisionLabel=$head")
     # Fallback for an older Buildah that mishandles the Dockerfile's
     # RUN --mount=type=cache directives.
     if ($NoCache) { $podmanArgs += '--no-cache' }
     $podmanArgs += $root
 
     Write-Host "podman $($podmanArgs -join ' ')"
-    & podman @args
+    & podman @podmanArgs
     if ($LASTEXITCODE -ne 0) {
         throw "podman build failed (exit $LASTEXITCODE). On an older Buildah, retry with -NoCache."
     }
     return $Image
+}
+
+# The commit an existing image was built from, or $null when there is no such
+# image, podman cannot be reached, or the image predates the label. All three
+# mean the same thing to a caller -- this image cannot be shown to be current --
+# and the right response to every one of them is to rebuild, not to assume.
+function Get-ImageRevision([string]$Image) {
+    # '{{json .Labels}}', not '{{index .Labels "<key>"}}'. The key contains dots
+    # so it cannot be a template field, and the index form puts double quotes
+    # INSIDE an argument that PowerShell then re-quotes for a Windows command
+    # line -- a round trip that is quietly host-specific. The whole map as JSON
+    # needs no quoting at all and PowerShell indexes it directly.
+    $json = & podman image inspect $Image --format '{{json .Labels}}' 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    $key    = $script:RevisionLabel
+    $labels = ($json | Out-String).Trim() | ConvertFrom-Json -ErrorAction SilentlyContinue
+    $sha    = if ($labels) { $labels.$key } else { $null }
+    if ($sha -notmatch '^[0-9a-f]{40}$') { return $null }
+    return $sha
 }
 
 # Clears BOTH topologies, always. A previous run may have left either behind,
@@ -91,7 +134,7 @@ function Start-BrowserContainer([string]$Name, [string]$Pod) {
         '-e', 'MAX_CONCURRENT_CHROME_PROCESSES=10'
         (Get-ImagePin 'Browser')
     )
-    & podman @args | Out-Null
+    & podman @podmanArgs | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "podman run (browser) failed (exit $LASTEXITCODE)." }
 }
 
@@ -123,7 +166,7 @@ function Start-AppContainer([hashtable]$Spec) {
     }
     $podmanArgs += $Spec.Image
 
-    & podman @args | Out-Null
+    & podman @podmanArgs | Out-Null
     if ($LASTEXITCODE -ne 0) { return $false }
     return $true
 }
@@ -165,5 +208,6 @@ function Get-ContainerEnv([string]$Container, [string]$Name) {
 }
 
 Export-ModuleMember -Function Get-PodmanNames, Test-PodmanReady, Build-Image, Remove-Stack,
+                              Get-ImageRevision,
                               New-AppPod, Start-BrowserContainer, Start-AppContainer,
                               Wait-ForHttp, Wait-ForExec, Get-ContainerEnv
