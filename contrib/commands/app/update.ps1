@@ -93,14 +93,29 @@ function Test-CommitPresent([string]$Sha) {
     return $LASTEXITCODE -eq 0
 }
 
-# Before the pull, not after it. Every path through this command ends in podman
-# -- the rebuild check reads a label off an image, and the start needs it
-# outright -- so an unusable podman is fatal either way, and finding that out
-# first costs nothing. It also keeps the failure readable: an absent binary
-# raises CommandNotFoundException, which $ErrorActionPreference='Stop' turns
-# into a terminating error before any exit code can be read, so without this the
-# reader gets "the term 'podman' is not recognized" from inside a label lookup.
-Test-PodmanReady
+# A pull that touches contrib/ has just replaced THIS SCRIPT, and PowerShell
+# parsed the whole file before its first line ran -- so everything below is the
+# version that was on disk when the command started, not the one just fetched.
+# Modules are different: Import-Module reads them when it runs, which is after
+# the pull. That split is not theoretical. The first run after the podman fixes
+# landed printed the NEW module's error message and the OLD script's rebuild
+# verdict in the same output, and a reader has no way to tell which half of a
+# run is stale.
+#
+# Re-running from disk is the only way to act on what was just fetched. The
+# guard makes it strictly one-shot: the relaunched run's own pull is a no-op, so
+# the condition cannot hold a second time.
+function Restart-IfToolingChanged([string]$From, [string]$To, [hashtable]$Bound) {
+    if ($env:MAKU_RELAUNCHED -eq '1' -or $From -eq $To) { return $false }
+    $touched = @(& git diff --name-only $From $To -- 'contrib/' | Where-Object { $_ })
+    if ($touched.Count -eq 0) { return $false }
+
+    Write-Host "The pull updated contrib/ -- re-running with the version just fetched."
+    $env:MAKU_RELAUNCHED = '1'
+    try { & $PSCommandPath @Bound } finally { Remove-Item Env:\MAKU_RELAUNCHED -ErrorAction SilentlyContinue }
+    return $true
+}
+
 Assert-CleanTree
 $branch = Get-CurrentBranch
 $before = (& git rev-parse HEAD).Trim()
@@ -118,6 +133,18 @@ if ($before -eq $after) {
 } else {
     Write-Host "Updated $($before.Substring(0,8)) -> $($after.Substring(0,8))."
 }
+
+if (Restart-IfToolingChanged $before $after $PSBoundParameters) { return }
+
+# After the pull, deliberately. Every path from here ends in podman -- the
+# rebuild check reads a label off an image, the start needs it outright -- and an
+# absent binary raises CommandNotFoundException, which $ErrorActionPreference
+# 'Stop' turns into a terminating error before any exit code can be read, so
+# without this the reader gets "the term 'podman' is not recognized" from inside
+# a label lookup. It does NOT come first: a broken podman must not stop this
+# machine from receiving a fix for the tooling, which is exactly the position a
+# deployment box is in when podman is the thing that is broken.
+Test-PodmanReady
 
 if ($Image) {
     Write-Host "Deploying $Image -- nothing to build."
