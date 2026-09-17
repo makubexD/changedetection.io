@@ -57,6 +57,14 @@ msgid "Currently:"
 msgstr "В настоящее время:"
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "What do you want to achieve?"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "Select a browser"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
 #, python-format
 msgid "%(browser)s cannot render a live preview, choose a browser below"
 msgstr ""
@@ -64,10 +72,6 @@ msgstr ""
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 msgid "Select by element"
 msgstr "Выбрать по элементу"
-
-#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
-msgid "Hover & click the preview to watch just one part of the page."
-msgstr ""
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -867,6 +871,16 @@ msgstr "Обновления пользовательского интерфей
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Enable or Disable Favicons next to the watch list"
 msgstr "Включить или отключить значки рядом со списком наблюдения."
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid "Disabling this can speed up your page fetches because the favicon does not need to be fetched."
+msgstr ""
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid ""
+"This copies your watch to a temporary hosted database and returns a link to make sharing/copying the watch to other "
+"people"
+msgstr ""
 
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Number of items per page in the watch overview list, 0 to disable."
@@ -1870,6 +1884,10 @@ msgid "To"
 msgstr "К"
 
 #: changedetectionio/blueprint/ui/templates/diff.html
+msgid "Filters"
+msgstr "Фильтры"
+
+#: changedetectionio/blueprint/ui/templates/diff.html
 msgid "Words"
 msgstr "Слова"
 
@@ -1940,10 +1958,9 @@ msgstr "Скриншот ошибки"
 msgid "Text"
 msgstr "Текст"
 
-#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/blueprint/ui/templates/preview.html
-#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-msgid "Current screenshot"
-msgstr "Текущий скриншот"
+#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/templates/extract.html
+msgid "Screenshot"
+msgstr "Скриншот"
 
 #: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/extract.py
 #: changedetectionio/processors/templates/extract.html
@@ -2392,6 +2409,11 @@ msgid "Select timestamp"
 msgstr "Выберите временную метку"
 
 #: changedetectionio/blueprint/ui/templates/preview.html
+#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
+msgid "Current screenshot"
+msgstr "Текущий скриншот"
+
+#: changedetectionio/blueprint/ui/templates/preview.html
 msgid "Current erroring screenshot from most recent request"
 msgstr "Текущий скриншот с ошибкой из последнего запроса"
 
@@ -2686,21 +2708,6 @@ msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #, python-format
-msgid "All %(page)s on this page are selected."
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "Select all %(total)s matching"
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "All %(total)s matching are selected."
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
 msgid "%(count)s records selected"
 msgstr ""
 
@@ -2752,6 +2759,10 @@ msgstr "в '%(title)s'"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "RSS Feed"
 msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
+msgid "Close"
+msgstr "Закрывать"
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Invert"
@@ -2826,9 +2837,20 @@ msgstr "Удалить часы?"
 msgid "<p><strong>Are you sure you want to delete the selected watches?</strong></p><p>This action cannot be undone.</p>"
 msgstr "<p><strong>Вы уверены, что хотите удалить выбранные часы?</strong></p><p>Это действие невозможно отменить.</p>"
 
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
-msgid "Close"
-msgstr "Закрывать"
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(page)s on this page are selected."
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "Select all %(total)s matching"
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(total)s matching are selected."
+msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Web page"
@@ -3590,6 +3612,10 @@ msgid "Use page <title> in watch overview list"
 msgstr "Использовать страницу <title> в обзорном списке просмотра"
 
 #: changedetectionio/forms.py
+msgid "Enable watch \"sharing\""
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Relative time format"
 msgstr ""
 
@@ -4069,10 +4095,6 @@ msgstr ""
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
 msgid "Not enough price data points yet to draw a graph - keep monitoring and the price history will appear here."
 msgstr ""
-
-#: changedetectionio/processors/templates/extract.html
-msgid "Screenshot"
-msgstr "Скриншот"
 
 #: changedetectionio/processors/templates/extract.html
 msgid "This tool will extract text data from all of the watch history."
@@ -4693,17 +4715,17 @@ msgid "Search"
 msgstr "Поиск"
 
 #: changedetectionio/templates/base.html
-#, python-format
-msgid "URL or Title in '%(title)s'"
-msgstr "URL-адрес или заголовок в формате «%(title)s»"
-
-#: changedetectionio/templates/base.html
-msgid "URL or Title"
-msgstr "URL или заголовок"
+msgid "URL, title or error text"
+msgstr "URL, заголовок или текст ошибки"
 
 #: changedetectionio/templates/base.html
 msgid "Enter search term..."
 msgstr "Введите поисковый запрос..."
+
+#: changedetectionio/templates/base.html
+#, python-format
+msgid "Searching in current group '%(title)s' only"
+msgstr "Поиск только в группе '%(title)s'"
 
 #: changedetectionio/templates/edit/include_llm_intent.html
 msgid ""

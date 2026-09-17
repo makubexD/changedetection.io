@@ -281,10 +281,15 @@ nav
                 </div>
                 <div class="pure-control-group">
                     {{ render_checkbox_field(form.application.form.ui.form.favicons_enabled, class="") }}
-                    <span class="pure-form-message-inline">{{ _('Enable or Disable Favicons next to the watch list') }}</span>
+                    <span class="pure-form-message-inline">{{ _('Enable or Disable Favicons next to the watch list') }}</span><br>
+                    <span class="pure-form-message-inline">{{ _('Disabling this can speed up your page fetches because the favicon does not need to be fetched.') }}</span>
                 </div>
                 <div class="pure-control-group">
                     {{ render_checkbox_field(form.application.form.ui.use_page_title_in_list) }}
+                </div>
+                <div class="pure-control-group">
+                    {{ render_checkbox_field(form.application.form.ui.use_share_watch) }}
+                    <span class="pure-form-message-inline">{{ _('This copies your watch to a temporary hosted database and returns a link to make sharing/copying the watch to other people') }}</span>
                 </div>
                 <div class="pure-control-group">
                     {{ render_field(form.application.form.pager_size) }}

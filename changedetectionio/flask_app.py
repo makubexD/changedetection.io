@@ -214,15 +214,40 @@ def _configure_plugin_templates():
 _configure_plugin_templates()
 csrf = CSRFProtect()
 csrf.init_app(app)
+
 notification_debug_log = []
 
-# Locale for correct presentation of prices etc
+# Locale for correct presentation of prices etc.
+#
+# Deliberately NOT locale.LC_ALL - LC_COLLATE must stay in the "C" locale.
+#
+# elementpath implements the XPath string functions on top of locale.strxfrm:
+#
+#     def contains(self, a, b):  return self.strxfrm(b) in self.strxfrm(a)
+#
+# Under LC_COLLATE=C, strxfrm() is the identity function and that substring test means what it
+# says. Under any real locale it returns a binary collation key, and a substring of a collation
+# key is not the collation key of the substring - so contains(), starts-with(), ends-with() and
+# substring-before/after() silently return false for EVERY input. Every xPath filter using
+# contains() then matches nothing and the watch reports "no filters were found" on a page whose
+# HTML plainly contains the target (#4437).
+#
+# That stayed hidden until the image actually generated its locales: before then this call raised
+# locale.Error, we logged a warning and stayed in C. Once en_US.UTF-8 existed the call succeeded
+# and took LC_COLLATE with it. Setting the presentation categories individually keeps what this
+# block is for - 1234567 still renders as "1,234,567" - without touching collation.
+#
+# Per XPath 3.1 the default collation is codepoint and must not consult LC_COLLATE at all, so
+# this is arguably an elementpath bug; html_tools.xpath_filter() pins the collation explicitly as
+# well, so a filter is correct even if an operator sets LC_COLLATE themselves.
 default_locale = locale.getdefaultlocale()
 logger.info(f"System locale default is {default_locale}")
-try:
-    locale.setlocale(locale.LC_ALL, default_locale)
-except locale.Error:
-    logger.warning(f"Unable to set locale {default_locale}, locale is not installed maybe?")
+for _category in (locale.LC_CTYPE, locale.LC_NUMERIC, locale.LC_MONETARY, locale.LC_TIME):
+    try:
+        locale.setlocale(_category, default_locale)
+    except locale.Error:
+        logger.warning(f"Unable to set locale {default_locale} for category {_category}, "
+                       f"locale is not installed maybe?")
 
 watch_api = Api(app, decorators=[csrf.exempt])
 
@@ -301,10 +326,10 @@ def get_sidebar_mode_class():
     # 'actionsidebar-minimal'   - collapsed icon rail (hover-to-expand lives in CSS + static/js/sidebar.js)
     # 'actionsidebar-no-expand' - opts that rail out of hover-to-expand
     # 'actionside-bar-on'       - always-open rail
-    # 'action-side-bar-expanded'- expanded logo/stats block
+    # 'actionsidebar-expanded'- expanded logo/stats block
     body_classes = {
         'expandable': 'actionsidebar-minimal',
-        'pinned-expanded': 'actionside-bar-on action-side-bar-expanded',
+        'pinned-expanded': 'actionside-bar-on actionsidebar-expanded',
         'minimal': 'actionsidebar-minimal actionsidebar-no-expand',
     }
 
@@ -779,6 +804,32 @@ def changedetection_app(config=None, datastore_o=None):
                 return None
             else:
                 return login_manager.unauthorized()
+
+    # #4299: werkzeug's send_file() (via make_conditional) injects a Date
+    # header into the WSGI response for conditional/static responses, and the
+    # Werkzeug built-in server (allow_unsafe_werkzeug=True) then writes its own
+    # Date via BaseHTTPRequestHandler.send_response() — emitting the Date
+    # header line twice, which RFC 9110 forbids and nginx rejects ("upstream
+    # sent duplicate header line"). Strip the application-side copy so the
+    # server's single header is what reaches the wire.
+    @app.after_request
+    def strip_duplicate_date_header(response):
+        if request.environ.get('SERVER_SOFTWARE', '').startswith('Werkzeug'):
+            response.headers.pop("Date", None)
+        return response
+
+    # Dynamic/authenticated pages (forms carrying a CSRF token, watch data, settings) must not
+    # be stored by an intermediate CDN or reverse proxy. Flask already sends "Vary: Cookie" on
+    # these, but an edge cache configured to key purely on URL will ignore it and can serve a
+    # stale CSRF token (breaking form submits) or one session's page to another visitor.
+    # Only fills in the header when the route didn't set one, so the explicit Cache-Control on
+    # static assets, screenshots, favicons and plugin files is left untouched. Note that
+    # werkzeug's send_file() always sets Cache-Control, so file responses never reach here.
+    @app.after_request
+    def add_no_cache_headers(response):
+        if 'Cache-Control' not in response.headers:
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
 
     watch_api.add_resource(
         WatchHistoryDiff,

@@ -58,6 +58,14 @@ msgid "Currently:"
 msgstr "Actuellement:"
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "What do you want to achieve?"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "Select a browser"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
 #, python-format
 msgid "%(browser)s cannot render a live preview, choose a browser below"
 msgstr ""
@@ -65,10 +73,6 @@ msgstr ""
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 msgid "Select by element"
 msgstr "Sélectionner par élément"
-
-#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
-msgid "Hover & click the preview to watch just one part of the page."
-msgstr ""
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -835,6 +839,16 @@ msgstr ""
 
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Enable or Disable Favicons next to the watch list"
+msgstr ""
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid "Disabling this can speed up your page fetches because the favicon does not need to be fetched."
+msgstr ""
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid ""
+"This copies your watch to a temporary hosted database and returns a link to make sharing/copying the watch to other "
+"people"
 msgstr ""
 
 #: changedetectionio/blueprint/settings/templates/settings.html
@@ -1783,6 +1797,10 @@ msgid "To"
 msgstr "À"
 
 #: changedetectionio/blueprint/ui/templates/diff.html
+msgid "Filters"
+msgstr "Filtres"
+
+#: changedetectionio/blueprint/ui/templates/diff.html
 msgid "Words"
 msgstr "Mots"
 
@@ -1824,7 +1842,7 @@ msgstr "Clavier:"
 
 #: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/blueprint/ui/templates/preview.html
 msgid "Previous"
-msgstr "Aperçu"
+msgstr "Précédent"
 
 #: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/blueprint/ui/templates/preview.html
 msgid "Next"
@@ -1853,10 +1871,9 @@ msgstr "Capture d'écran d'erreur"
 msgid "Text"
 msgstr "Texte"
 
-#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/blueprint/ui/templates/preview.html
-#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-msgid "Current screenshot"
-msgstr "Capture d'écran actuelle"
+#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/templates/extract.html
+msgid "Screenshot"
+msgstr "Capture d'écran"
 
 #: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/extract.py
 #: changedetectionio/processors/templates/extract.html
@@ -2291,6 +2308,11 @@ msgid "Select timestamp"
 msgstr "Sélectionnez l'horodatage"
 
 #: changedetectionio/blueprint/ui/templates/preview.html
+#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
+msgid "Current screenshot"
+msgstr "Capture d'écran actuelle"
+
+#: changedetectionio/blueprint/ui/templates/preview.html
 msgid "Current erroring screenshot from most recent request"
 msgstr "Capture d'écran erronée actuelle de la demande la plus récente"
 
@@ -2583,21 +2605,6 @@ msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #, python-format
-msgid "All %(page)s on this page are selected."
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "Select all %(total)s matching"
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "All %(total)s matching are selected."
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
 msgid "%(count)s records selected"
 msgstr ""
 
@@ -2648,6 +2655,10 @@ msgstr "dans '%(title)s'"
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "RSS Feed"
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
+msgid "Close"
 msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -2723,8 +2734,19 @@ msgstr "Supprimer les montres ?"
 msgid "<p><strong>Are you sure you want to delete the selected watches?</strong></p><p>This action cannot be undone.</p>"
 msgstr ""
 
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
-msgid "Close"
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(page)s on this page are selected."
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "Select all %(total)s matching"
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(total)s matching are selected."
 msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -3485,6 +3507,10 @@ msgid "Use page <title> in watch overview list"
 msgstr "Utiliser la page <title> dans la liste de présentation des moniteurs"
 
 #: changedetectionio/forms.py
+msgid "Enable watch \"sharing\""
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Relative time format"
 msgstr ""
 
@@ -3963,10 +3989,6 @@ msgstr ""
 
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
 msgid "Not enough price data points yet to draw a graph - keep monitoring and the price history will appear here."
-msgstr ""
-
-#: changedetectionio/processors/templates/extract.html
-msgid "Screenshot"
 msgstr ""
 
 #: changedetectionio/processors/templates/extract.html
@@ -4578,17 +4600,17 @@ msgid "Search"
 msgstr "Rechercher"
 
 #: changedetectionio/templates/base.html
-#, python-format
-msgid "URL or Title in '%(title)s'"
-msgstr ""
-
-#: changedetectionio/templates/base.html
-msgid "URL or Title"
-msgstr ""
+msgid "URL, title or error text"
+msgstr "URL, titre ou texte d'erreur"
 
 #: changedetectionio/templates/base.html
 msgid "Enter search term..."
 msgstr ""
+
+#: changedetectionio/templates/base.html
+#, python-format
+msgid "Searching in current group '%(title)s' only"
+msgstr "Recherche uniquement dans le groupe '%(title)s'"
 
 #: changedetectionio/templates/edit/include_llm_intent.html
 msgid ""

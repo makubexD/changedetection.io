@@ -61,6 +61,14 @@ msgid "Currently:"
 msgstr "Saat ini:"
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "What do you want to achieve?"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "Select a browser"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
 #, python-format
 msgid "%(browser)s cannot render a live preview, choose a browser below"
 msgstr "%(browser)s tidak dapat menampilkan pratinjau langsung, pilih browser di bawah"
@@ -68,10 +76,6 @@ msgstr "%(browser)s tidak dapat menampilkan pratinjau langsung, pilih browser di
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 msgid "Select by element"
 msgstr "Pilih berdasarkan elemen"
-
-#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
-msgid "Hover & click the preview to watch just one part of the page."
-msgstr "Arahkan kursor & klik pratinjau untuk memantau hanya satu bagian halaman."
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -861,6 +865,16 @@ msgstr "Pembaruan UI Realtime Diaktifkan - (Perlu mulai ulang jika diubah)"
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Enable or Disable Favicons next to the watch list"
 msgstr "Aktifkan atau Nonaktifkan Favicon di samping daftar monitor"
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid "Disabling this can speed up your page fetches because the favicon does not need to be fetched."
+msgstr ""
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid ""
+"This copies your watch to a temporary hosted database and returns a link to make sharing/copying the watch to other "
+"people"
+msgstr ""
 
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Number of items per page in the watch overview list, 0 to disable."
@@ -1867,6 +1881,10 @@ msgid "To"
 msgstr "Ke"
 
 #: changedetectionio/blueprint/ui/templates/diff.html
+msgid "Filters"
+msgstr "Filter"
+
+#: changedetectionio/blueprint/ui/templates/diff.html
 msgid "Words"
 msgstr "Kata"
 
@@ -1937,10 +1955,9 @@ msgstr "Tangkapan Layar Kesalahan"
 msgid "Text"
 msgstr "Teks"
 
-#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/blueprint/ui/templates/preview.html
-#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-msgid "Current screenshot"
-msgstr "Tangkapan layar saat ini"
+#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/templates/extract.html
+msgid "Screenshot"
+msgstr "Tangkapan layar"
 
 #: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/extract.py
 #: changedetectionio/processors/templates/extract.html
@@ -2387,6 +2404,11 @@ msgid "Select timestamp"
 msgstr "Pilih stempel waktu"
 
 #: changedetectionio/blueprint/ui/templates/preview.html
+#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
+msgid "Current screenshot"
+msgstr "Tangkapan layar saat ini"
+
+#: changedetectionio/blueprint/ui/templates/preview.html
 msgid "Current erroring screenshot from most recent request"
 msgstr "Tangkapan layar kesalahan saat ini dari permintaan terbaru"
 
@@ -2681,21 +2703,6 @@ msgstr "URL halaman web"
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #, python-format
-msgid "All %(page)s on this page are selected."
-msgstr "Semua %(page)s pada halaman ini dipilih."
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "Select all %(total)s matching"
-msgstr "Pilih semua %(total)s yang cocok"
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "All %(total)s matching are selected."
-msgstr "Semua %(total)s yang cocok dipilih."
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
 msgid "%(count)s records selected"
 msgstr "%(count)s rekaman dipilih"
 
@@ -2747,6 +2754,10 @@ msgstr "di '%(title)s'"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "RSS Feed"
 msgstr "Feed RSS"
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
+msgid "Close"
+msgstr "Tutup"
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Invert"
@@ -2821,9 +2832,20 @@ msgstr "Hapus Monitor?"
 msgid "<p><strong>Are you sure you want to delete the selected watches?</strong></p><p>This action cannot be undone.</p>"
 msgstr "<p><strong>Anda yakin ingin menghapus monitor yang dipilih?</strong></p><p>Tindakan ini tidak dapat dibatalkan.</p>"
 
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
-msgid "Close"
-msgstr "Tutup"
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(page)s on this page are selected."
+msgstr "Semua %(page)s pada halaman ini dipilih."
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "Select all %(total)s matching"
+msgstr "Pilih semua %(total)s yang cocok"
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(total)s matching are selected."
+msgstr "Semua %(total)s yang cocok dipilih."
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Web page"
@@ -3585,6 +3607,10 @@ msgid "Use page <title> in watch overview list"
 msgstr "Gunakan <title> halaman dalam daftar ringkasan monitor"
 
 #: changedetectionio/forms.py
+msgid "Enable watch \"sharing\""
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Relative time format"
 msgstr "Format waktu relatif"
 
@@ -4064,10 +4090,6 @@ msgstr "Stok"
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
 msgid "Not enough price data points yet to draw a graph - keep monitoring and the price history will appear here."
 msgstr "Belum cukup titik data harga untuk membuat grafik - terus pantau dan riwayat harga akan muncul di sini."
-
-#: changedetectionio/processors/templates/extract.html
-msgid "Screenshot"
-msgstr "Tangkapan layar"
 
 #: changedetectionio/processors/templates/extract.html
 msgid "This tool will extract text data from all of the watch history."
@@ -4684,17 +4706,17 @@ msgid "Search"
 msgstr "Cari"
 
 #: changedetectionio/templates/base.html
-#, python-format
-msgid "URL or Title in '%(title)s'"
-msgstr "URL atau Judul di '%(title)s'"
-
-#: changedetectionio/templates/base.html
-msgid "URL or Title"
-msgstr "URL atau Judul"
+msgid "URL, title or error text"
+msgstr "URL, judul atau teks kesalahan"
 
 #: changedetectionio/templates/base.html
 msgid "Enter search term..."
 msgstr "Masukkan istilah pencarian..."
+
+#: changedetectionio/templates/base.html
+#, python-format
+msgid "Searching in current group '%(title)s' only"
+msgstr "Mencari hanya dalam grup '%(title)s'"
 
 #: changedetectionio/templates/edit/include_llm_intent.html
 msgid ""

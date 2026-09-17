@@ -58,6 +58,14 @@ msgid "Currently:"
 msgstr "현재:"
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "What do you want to achieve?"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
+msgid "Select a browser"
+msgstr ""
+
+#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
 #, python-format
 msgid "%(browser)s cannot render a live preview, choose a browser below"
 msgstr ""
@@ -65,10 +73,6 @@ msgstr ""
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 msgid "Select by element"
 msgstr "요소별로 선택"
-
-#: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html
-msgid "Hover & click the preview to watch just one part of the page."
-msgstr ""
 
 #: changedetectionio/blueprint/add_watch_ui/templates/add-watch-ui.html changedetectionio/blueprint/ui/templates/edit.html
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
@@ -832,6 +836,16 @@ msgstr "실시간 UI 업데이트 활성화 (변경 시 재시작 필요)"
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Enable or Disable Favicons next to the watch list"
 msgstr "모니터링 목록 옆 파비콘 표시 여부"
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid "Disabling this can speed up your page fetches because the favicon does not need to be fetched."
+msgstr ""
+
+#: changedetectionio/blueprint/settings/templates/settings.html
+msgid ""
+"This copies your watch to a temporary hosted database and returns a link to make sharing/copying the watch to other "
+"people"
+msgstr ""
 
 #: changedetectionio/blueprint/settings/templates/settings.html
 msgid "Number of items per page in the watch overview list, 0 to disable."
@@ -1784,6 +1798,10 @@ msgid "To"
 msgstr "비교 후"
 
 #: changedetectionio/blueprint/ui/templates/diff.html
+msgid "Filters"
+msgstr "필터"
+
+#: changedetectionio/blueprint/ui/templates/diff.html
 msgid "Words"
 msgstr "단어"
 
@@ -1854,10 +1872,9 @@ msgstr "오류 스크린샷"
 msgid "Text"
 msgstr "텍스트"
 
-#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/blueprint/ui/templates/preview.html
-#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
-msgid "Current screenshot"
-msgstr "현재 스크린샷"
+#: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/templates/extract.html
+msgid "Screenshot"
+msgstr "스크린샷"
 
 #: changedetectionio/blueprint/ui/templates/diff.html changedetectionio/processors/extract.py
 #: changedetectionio/processors/templates/extract.html
@@ -2290,6 +2307,11 @@ msgid "Select timestamp"
 msgstr "타임스탬프 선택"
 
 #: changedetectionio/blueprint/ui/templates/preview.html
+#: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
+msgid "Current screenshot"
+msgstr "현재 스크린샷"
+
+#: changedetectionio/blueprint/ui/templates/preview.html
 msgid "Current erroring screenshot from most recent request"
 msgstr "가장 최근 요청의 현재 오류 스크린샷"
 
@@ -2582,21 +2604,6 @@ msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 #, python-format
-msgid "All %(page)s on this page are selected."
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "Select all %(total)s matching"
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
-msgid "All %(total)s matching are selected."
-msgstr ""
-
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
-#, python-format
 msgid "%(count)s records selected"
 msgstr ""
 
@@ -2648,6 +2655,10 @@ msgstr "'%(title)s'에서"
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "RSS Feed"
 msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
+msgid "Close"
+msgstr "닫기"
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Invert"
@@ -2722,9 +2733,20 @@ msgstr "모니터링을 삭제하시겠습니까?"
 msgid "<p><strong>Are you sure you want to delete the selected watches?</strong></p><p>This action cannot be undone.</p>"
 msgstr "<p><strong>선택한 모니터링을 삭제하시겠습니까?</strong></p><p>이 작업은 되돌릴 수 없습니다.</p>"
 
-#: changedetectionio/blueprint/watchlist/templates/watch-overview.html changedetectionio/templates/base.html
-msgid "Close"
-msgstr "닫기"
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(page)s on this page are selected."
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "Select all %(total)s matching"
+msgstr ""
+
+#: changedetectionio/blueprint/watchlist/templates/watch-overview.html
+#, python-format
+msgid "All %(total)s matching are selected."
+msgstr ""
 
 #: changedetectionio/blueprint/watchlist/templates/watch-overview.html
 msgid "Web page"
@@ -3482,6 +3504,10 @@ msgid "Use page <title> in watch overview list"
 msgstr "모니터링 목록에 페이지 <title> 사용"
 
 #: changedetectionio/forms.py
+msgid "Enable watch \"sharing\""
+msgstr ""
+
+#: changedetectionio/forms.py
 msgid "Relative time format"
 msgstr ""
 
@@ -3961,10 +3987,6 @@ msgstr ""
 #: changedetectionio/processors/restock_diff/templates/restock_diff/difference.html
 msgid "Not enough price data points yet to draw a graph - keep monitoring and the price history will appear here."
 msgstr ""
-
-#: changedetectionio/processors/templates/extract.html
-msgid "Screenshot"
-msgstr "스크린샷"
 
 #: changedetectionio/processors/templates/extract.html
 msgid "This tool will extract text data from all of the watch history."
@@ -4573,17 +4595,17 @@ msgid "Search"
 msgstr "검색"
 
 #: changedetectionio/templates/base.html
-#, python-format
-msgid "URL or Title in '%(title)s'"
-msgstr "'%(title)s'의 URL 또는 제목"
-
-#: changedetectionio/templates/base.html
-msgid "URL or Title"
-msgstr "URL 또는 제목"
+msgid "URL, title or error text"
+msgstr "URL, 제목 또는 오류 텍스트"
 
 #: changedetectionio/templates/base.html
 msgid "Enter search term..."
 msgstr "검색어를 입력하세요..."
+
+#: changedetectionio/templates/base.html
+#, python-format
+msgid "Searching in current group '%(title)s' only"
+msgstr "'%(title)s' 그룹 내에서만 검색"
 
 #: changedetectionio/templates/edit/include_llm_intent.html
 msgid ""
