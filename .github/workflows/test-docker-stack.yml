@@ -27,7 +27,7 @@ on:
 env:
   COMPOSE: docker compose -f contrib/podman/podman-compose.yml
   # Shared-network topology: the app reaches Chrome by service name, not
-  # localhost. A shared POD (run.ps1 -WithBrowser, kube play) uses
+  # localhost. A shared POD (`maku.ps1 app start -WithBrowser`, kube play) uses
   # ws://localhost:3000 instead -- the two are not interchangeable.
   PLAYWRIGHT_DRIVER_URL: ws://browser-sockpuppet-chrome:3000
   DEFAULT_FETCH_BACKEND: html_webdriver

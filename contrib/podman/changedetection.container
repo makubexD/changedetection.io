@@ -36,8 +36,8 @@ Environment=BASE_URL=http://localhost:5000
 
 # Uncomment to use Chrome, together with installing sockpuppetbrowser.container.
 # The hostname is the browser's ContainerName, resolved by DNS on
-# changedetection.network. (run.ps1 uses a pod instead, where the same thing is
-# reached at ws://localhost:3000 -- do not copy that value here.)
+# changedetection.network. (`maku.ps1 app start -WithBrowser` uses a pod instead,
+# where the same thing is reached at ws://localhost:3000 -- do not copy it here.)
 #
 # Setting this makes the app treat Chrome as available, so leave it commented
 # out unless the browser is actually running.
