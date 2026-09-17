@@ -20,5 +20,10 @@ Import-Module (Join-Path $PSScriptRoot '..\..\lib\Images.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\..\lib\Console.psm1') -Force
 
 Test-PodmanReady
-$image = Build-Image (Get-ImagePin 'AppLocal') -NoCache:$NoCache
+# The name is read first and reused, rather than taken back out of Build-Image.
+# A function that returns its own input parameter through the pipeline shares
+# that pipeline with the command it runs -- which is how podman's image ID ended
+# up in this line.
+$image = Get-ImagePin 'AppLocal'
+Build-Image $image -NoCache:$NoCache
 Write-Pass 'build' $image

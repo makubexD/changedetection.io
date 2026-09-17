@@ -109,7 +109,7 @@ try {
         }
         Write-Host "Reusing $image"
     } else {
-        Build-Image $image | Out-Null
+        Build-Image $image
     }
 
     if ($needsBrowser) {

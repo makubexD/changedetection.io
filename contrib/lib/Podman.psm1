@@ -74,11 +74,33 @@ function Build-Image([string]$Image, [switch]$NoCache) {
     $podmanArgs += $root
 
     Write-Host "podman $($podmanArgs -join ' ')"
-    & podman @podmanArgs
+    Write-BuildWaitNotice
+    $started = Get-Date
+
+    # Out-Host, not a bare call. podman writes its STEP lines to stderr, which
+    # streams, but the final image ID to STDOUT -- and a caller writing
+    # `$image = Build-Image ...` captures that into the return value. It did:
+    # $image came back as TWO elements, so 'OK build' printed
+    # "sha256:deadbeef... changedetection.io:dev". Sending it to the host keeps
+    # it on screen and out of the pipeline. This function now returns nothing;
+    # the caller already knows the name, it passed it in.
+    & podman @podmanArgs | Out-Host
     if ($LASTEXITCODE -ne 0) {
         throw "podman build failed (exit $LASTEXITCODE). On an older Buildah, retry with -NoCache."
     }
-    return $Image
+    Write-Host ("Build finished in " + ((Get-Date) - $started).ToString('hh\:mm\:ss') + ".")
+}
+
+# A full application build takes minutes and podman says NOTHING during the
+# longest of them: the base image pull and the pip install behind
+# RUN --mount=type=cache both run silently to completion. Every report of this
+# command "freezing" has been that silence. Saying so up front costs one line
+# and is the difference between waiting and killing a working build.
+function Write-BuildWaitNotice {
+    Write-Host "Building the application image. Several minutes is normal, and longer on"
+    Write-Host "the first build after a version bump -- podman prints nothing at all while"
+    Write-Host "it pulls the base image and installs requirements. It has not hung."
+    Write-Host "To confirm from another terminal:  podman ps -a --external"
 }
 
 # The commit an existing image was built from, or $null when there is no such
