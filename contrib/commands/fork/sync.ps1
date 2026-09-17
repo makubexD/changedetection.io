@@ -73,15 +73,20 @@ function Assert-UpstreamRemote {
 }
 
 # Upstream already ran its ~50-job matrix on this exact SHA. Reading that verdict
-# is one API call and a better answer than a second run would be -- which is why
-# this fork disables those workflows rather than re-running them.
+# is a better answer than a second run would be -- which is why this fork disables
+# those workflows rather than re-running them.
+#
+# --paginate IS NOT OPTIONAL. The endpoint returns 30 check runs per page and
+# upstream currently produces well over a hundred, so without it this gate reads a
+# third of the matrix and calls the whole thing green: a failure on page two would
+# sync silently. The count printed on success is the proof it read them all.
 function Assert-UpstreamCiGreen([string]$sha) {
     $short = $sha.Substring(0, 8)
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
         Write-Warn 'ci' "gh is not installed -- upstream CI was NOT checked for $short."
         return
     }
-    $runs = gh api "repos/dgtlmoon/changedetection.io/commits/$sha/check-runs" `
+    $runs = gh api --paginate "repos/dgtlmoon/changedetection.io/commits/$sha/check-runs" `
                 --jq '.check_runs[] | "\(.conclusion)"' 2>$null
     if ($LASTEXITCODE -ne 0) { throw "could not read upstream check runs for $sha" }
 
