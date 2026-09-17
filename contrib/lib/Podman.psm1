@@ -1,0 +1,169 @@
+# Every podman invocation this project makes.
+#
+# WHY THIS EXISTS. The container start-up arguments used to be written out five
+# times for the app and three times for the browser, and they had already
+# drifted: one copy omitted SCREEN_DEPTH, another omitted
+# MAX_CONCURRENT_CHROME_PROCESSES, so the smoke test and the real deployment were
+# not running the same browser. One definition each, here.
+
+Import-Module (Join-Path $PSScriptRoot 'Images.psm1')
+
+$script:AppContainer     = 'changedetection'
+$script:BrowserContainer = 'browser-sockpuppet-chrome'
+$script:Pod              = 'changedetection-pod'
+$script:Volume           = 'changedetection-data'
+
+function Get-PodmanNames {
+    return [pscustomobject]@{
+        App     = $script:AppContainer
+        Browser = $script:BrowserContainer
+        Pod     = $script:Pod
+        Volume  = $script:Volume
+    }
+}
+
+function Test-PodmanReady {
+    # Get-Command first: an ABSENT executable raises CommandNotFoundException,
+    # which $ErrorActionPreference='Stop' turns into a terminating error before
+    # any exit code can be inspected -- so the reader would get PowerShell's
+    # "term is not recognized" instead of a sentence telling them what to install.
+    if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
+        throw ("podman is not installed, or not on PATH." + [Environment]::NewLine +
+               "  fix: see contrib/podman/VERIFY.md -- Prerequisites")
+    }
+    & podman --version 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "podman is installed but did not run. See contrib/podman/VERIFY.md."
+    }
+    & podman info 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "podman info failed -- the machine is probably not running.`n  fix: podman machine start"
+    }
+}
+
+function Build-Image([string]$Image, [switch]$NoCache) {
+    $root = (& git rev-parse --show-toplevel).Trim()
+    $podmanArgs = @('build', '-t', $Image, '-f', (Join-Path $root 'Dockerfile'))
+    # Fallback for an older Buildah that mishandles the Dockerfile's
+    # RUN --mount=type=cache directives.
+    if ($NoCache) { $podmanArgs += '--no-cache' }
+    $podmanArgs += $root
+
+    Write-Host "podman $($podmanArgs -join ' ')"
+    & podman @args
+    if ($LASTEXITCODE -ne 0) {
+        throw "podman build failed (exit $LASTEXITCODE). On an older Buildah, retry with -NoCache."
+    }
+    return $Image
+}
+
+# Clears BOTH topologies, always. A previous run may have left either behind,
+# and both publish the port: a plain run through the container, -WithBrowser
+# through the POD's infra container, which keeps the binding even after the app
+# container is gone. Removing only one leaves the next start dying with
+# "address already in use" (exit 126).
+#
+# The named volume -- every watch and its history -- is untouched by any of it.
+function Remove-Stack([string[]]$Containers, [string]$Pod) {
+    if ($Containers) { & podman rm -f @Containers 2>$null | Out-Null }
+    if ($Pod)        { & podman pod rm -f $Pod     2>$null | Out-Null }
+}
+
+# The pod owns the published port; containers inside must not publish their own.
+function New-AppPod([string]$Name, [int]$Port) {
+    & podman pod create --name $Name -p "127.0.0.1:${Port}:5000" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "podman pod create failed (exit $LASTEXITCODE)." }
+}
+
+# Chrome, wrapped in an API. --shm-size=2g because podman defaults /dev/shm to
+# 64MB and Chrome dies with "Target closed" / renderer failures well before that
+# is genuinely exhausted.
+function Start-BrowserContainer([string]$Name, [string]$Pod) {
+    $podmanArgs = @('run', '-d', '--name', $Name)
+    if ($Pod) { $podmanArgs += @('--pod', $Pod) }
+    $podmanArgs += @(
+        '--restart', 'unless-stopped'
+        '--shm-size=2g'
+        '--cap-add', 'SYS_ADMIN'
+        '-e', 'SCREEN_WIDTH=1920'
+        '-e', 'SCREEN_HEIGHT=1024'
+        '-e', 'SCREEN_DEPTH=16'
+        '-e', 'MAX_CONCURRENT_CHROME_PROCESSES=10'
+        (Get-ImagePin 'Browser')
+    )
+    & podman @args | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "podman run (browser) failed (exit $LASTEXITCODE)." }
+}
+
+# Spec keys: Name, Image, Volume, Port, Pod, DriverUrl, Restart.
+# A single hashtable rather than seven parameters -- the caller reads as a
+# declaration of what it wants, and the signature stays within the limit.
+function Start-AppContainer([hashtable]$Spec) {
+    $port = $Spec.Port
+    $podmanArgs = @('run', '-d', '--name', $Spec.Name)
+
+    if ($Spec.Pod) {
+        # In a pod the published port belongs to the pod, not to this container.
+        $podmanArgs += @('--pod', $Spec.Pod)
+    } else {
+        $podmanArgs += @('-p', "127.0.0.1:${port}:5000")
+    }
+    if ($Spec.Restart) { $podmanArgs += @('--restart', 'unless-stopped') }
+
+    $podmanArgs += @('-v', "$($Spec.Volume):/datastore", '-e', "BASE_URL=http://localhost:$port")
+
+    if ($Spec.DriverUrl) {
+        # DEFAULT_FETCH_BACKEND makes NEW watches use Chrome. Without it the
+        # browser runs but nothing points at it: every watch keeps fetching plain
+        # HTML until Fetch Method is changed by hand, one watch at a time. It
+        # seeds the settings DEFAULT, so it takes effect on a FRESH datastore --
+        # an existing install keeps its saved value.
+        $podmanArgs += @('-e', "PLAYWRIGHT_DRIVER_URL=$($Spec.DriverUrl)"
+                   '-e', 'DEFAULT_FETCH_BACKEND=html_webdriver')
+    }
+    $podmanArgs += $Spec.Image
+
+    & podman @args | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+# A listening port is not enough on first start -- the app does one-time setup
+# before it serves, so this polls rather than checking once.
+function Wait-ForHttp([string]$Url, [int]$TimeoutSec) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            if ((Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) {
+                return $true
+            }
+        } catch {
+            # Not up yet. Keep waiting until the deadline.
+        }
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
+# Runs a command inside a container until it succeeds or the tries run out.
+function Wait-ForExec([string]$Container, [string]$Command, [int]$Tries) {
+    for ($i = 0; $i -lt $Tries; $i++) {
+        & podman exec $Container sh -c $Command 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { return $true }
+        Start-Sleep -Seconds 2
+    }
+    return $false
+}
+
+# Reads an environment variable from inside a running container. Used to prove
+# the app was actually TOLD about the browser -- reachable but unconfigured looks
+# identical from the outside.
+function Get-ContainerEnv([string]$Container, [string]$Name) {
+    $value = & podman exec $Container sh -c "echo `$$Name" 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ($value | Out-String).Trim()
+}
+
+Export-ModuleMember -Function Get-PodmanNames, Test-PodmanReady, Build-Image, Remove-Stack,
+                              New-AppPod, Start-BrowserContainer, Start-AppContainer,
+                              Wait-ForHttp, Wait-ForExec, Get-ContainerEnv
