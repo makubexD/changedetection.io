@@ -254,20 +254,35 @@ function Get-ContainerState([string]$Name) {
     $parts = @(($line | Out-String).Trim() -split '\|')
     if ($parts.Count -lt 3) { return $null }
     return [pscustomobject]@{
-        Image     = $parts[0]
-        Status    = $parts[1]
+        Image = $parts[0]
+        Status = $parts[1]
         StartedAt = ConvertFrom-PodmanTime $parts[2]
-        Env       = ConvertTo-EnvMap @($parts | Select-Object -Skip 3)
+        # Kept verbatim so a stamp this cannot read can be REPORTED rather than
+        # guessed at. $null StartedAt is the only failure the caller can see, and
+        # without the original text there is nothing to act on.
+        StartedAtText = $parts[2]
+        Env = ConvertTo-EnvMap @($parts | Select-Object -Skip 3)
     }
 }
 
-# podman stamps times with NANOSECOND precision and .NET parses at most seven
-# fractional digits, failing outright on nine. UTC, because the only thing this
-# is ever compared against is a file's LastWriteTimeUtc.
+# $null when the stamp cannot be read -- NOT a sentinel date. MinValue made an
+# unreadable time look like a container started in year 1, so every file on disk
+# was "newer" and the caller restarted on a reason that was not true.
+#
+# StartedAt is a Go time.Time and a template renders one with String(), NOT
+# RFC3339: '2026-09-17 17:28:16.123456789 +0000 UTC'. Two things in that defeat
+# [datetime]::TryParse -- the trailing zone NAME, which is redundant next to the
+# numeric offset that carries the actual meaning, and nine fractional digits
+# where .NET takes at most seven. Both are stripped; the offset is left alone
+# and .NET honours it. The RFC3339 form still parses untouched.
 function ConvertFrom-PodmanTime([string]$Text) {
-    $stamp  = $Text -replace '(\.\d{1,7})\d*', '$1'
+    $stamp = $Text.Trim()
+    $stamp = $stamp -replace '\s+m=[+-][\d.]+$', ''            # Go's monotonic reading
+    $stamp = $stamp -replace '(?<=[+-]\d{2}:?\d{2})\s+\S+$', ''  # zone name after the offset
+    $stamp = $stamp -replace '(\.\d{1,7})\d*', '$1'             # nanoseconds -> ticks
     $parsed = [datetime]::MinValue
-    if (-not [datetime]::TryParse($stamp, [ref]$parsed)) { return [datetime]::MinValue }
+    if (-not [datetime]::TryParse($stamp, [ref]$parsed)) { return $null }
+    # UTC, because the only thing this is ever compared against is LastWriteTimeUtc.
     return $parsed.ToUniversalTime()
 }
 

@@ -134,6 +134,13 @@ $named      = $bound.Named
 # HERE rather than in each command is what makes every refusal in the CLI look
 # the same, including ones added later, and it extends what this file already
 # does a few lines above for argument-binding errors.
+# The record is $global: and this file is usually run from an interactive
+# PowerShell session, where a global outlives the run that set it. Both exits
+# below drain it, but a Ctrl-C does not reach either -- and the leftovers would
+# then be printed by the NEXT command, timestamped minutes earlier and blamed on
+# a run that did not do them. Starting empty is what makes that impossible.
+Clear-Actions
+
 try {
     & $script @positional @named
     # Captured BEFORE anything else runs. Only native commands set $LASTEXITCODE,

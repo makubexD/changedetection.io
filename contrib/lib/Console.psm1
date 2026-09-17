@@ -84,6 +84,13 @@ function Add-Action([string]$Verb, [string]$Detail) {
     [void]$global:MakuActions.Add([pscustomobject]@{ At = Get-Date; Verb = $Verb; Detail = $Detail })
 }
 
+# For the dispatcher to call before it hands over, so a run can never report
+# actions it did not take. Separate from Write-ActionLog because discarding a
+# previous run's leftovers must NOT print them.
+function Clear-Actions {
+    $global:MakuActions.Clear()
+}
+
 # Renders and CLEARS, and the clearing is the load-bearing half: 'app update'
 # hands off to a relaunched child process, and the dispatcher calls this too.
 # Draining makes a double-printed record structurally impossible rather than
@@ -99,4 +106,4 @@ function Write-ActionLog {
 
 Export-ModuleMember -Function Write-Stage, Write-Pass, Write-Warn, Write-Fail, `
                               New-Refusal, Test-IsRefusal, Write-Refusal, `
-                              Add-Action, Write-ActionLog
+                              Add-Action, Write-ActionLog, Clear-Actions

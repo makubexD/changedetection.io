@@ -120,6 +120,14 @@ function Get-RestartDecision([hashtable]$Want) {
     if ($state.Env['BASE_URL'] -ne "http://localhost:$($Want.Port)") {
         return "it is published on $($state.Env['BASE_URL'])"
     }
+    # Before the comparison, and it does NOT fall through to it. An unreadable
+    # start time cannot answer "did contrib/runtime change since?", so saying it
+    # did would be inventing a reason. Restarting is still right -- nothing here
+    # can prove the deployment is current -- but the reason has to be the real
+    # one, and it carries what podman said so it is fixable in one run.
+    if (-not $state.StartedAt) {
+        return "podman's start time could not be read -- it said: $($state.StartedAtText)"
+    }
     if ((Get-RuntimeMtime) -gt $state.StartedAt) {
         return 'contrib/runtime changed since the container started'
     }

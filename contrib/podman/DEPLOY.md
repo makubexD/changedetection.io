@@ -159,6 +159,7 @@ restarts only when one of these is true, printing which:
 | `contrib/runtime/` is newer than the container's start time | that directory is mounted in, and `sitecustomize.py` is read once at interpreter start — so a tooling-only pull still needs a restart |
 | `-WithBrowser` differs from how it is running | the topology asked for is not the one that is up |
 | `-Port` differs from the container's `BASE_URL` | same |
+| podman's start time cannot be read | nothing can prove the deployment is current, so it restarts — and prints the stamp podman gave, because that is a defect worth reporting rather than a normal condition |
 
 Otherwise it says so and stops, leaving a working deployment up. To restart
 regardless:
