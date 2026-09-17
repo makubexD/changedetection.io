@@ -32,3 +32,6 @@ test-memory.log
 
 # Per-test loguru logs written by tests/conftest.py (dirname(__file__)/logs)
 changedetectionio/tests/logs/
+
+# Written by: .\contrib\maku.ps1 tests run -- nothing reads them back.
+contrib/podman/test-logs/

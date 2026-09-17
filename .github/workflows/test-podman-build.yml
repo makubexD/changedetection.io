@@ -1,5 +1,5 @@
 # Verifies the root Dockerfile builds and runs under Podman/Buildah.
-# This is the authoritative check for contrib/podman/ when no local Podman
+# This is the authoritative check for contrib/ when no local Podman
 # is available.
 name: Test Podman build
 
@@ -8,7 +8,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'requirements.txt'
-      - 'contrib/podman/**'
+      - 'contrib/**'
       - '.github/workflows/test-podman-build.yml'
   pull_request:
   workflow_dispatch:
