@@ -19,12 +19,51 @@ the whole page's structured data and never looks at the watch's filter, so a pag
 publishing one price reports that price on every watch pointed at it, whatever
 selector is set. Seeing that stated next to the filter's own result is what turns
 a confusing afternoon into a one-line answer.
+
+THE ONE RULE THIS FILE MUST NOT BREAK. An answer about OUR OWN ENVIRONMENT is
+never printed in the shape of an answer about the page. The first version did
+exactly that: a single `except Exception` wrapped both the import of the
+extractor and the call to it, so when the import failed -- our bug, nothing to do
+with the site -- it printed "a Restock watch on this page would error rather than
+report a price". That was false, and it was the very failure this tool exists to
+prevent. Environment problems now abort with a fix line; only genuine facts about
+the fetched content are reported as such.
 """
 
 import argparse
 import json
 import sys
 import time
+
+# The application is importable inside the container only because its entry
+# script lives here, which makes /app become sys.path[0]:
+#   Dockerfile -> COPY changedetectionio /app/changedetectionio
+#                 WORKDIR /app
+#                 CMD ["python", "./changedetection.py", ...]
+# ENV PYTHONPATH=/usr/local carries the DEPENDENCIES, not the app. This script
+# runs from /maku-runtime, so sys.path[0] is that directory instead and the app
+# is nowhere on the path. The cwd does not help: for a script Python uses the
+# script's own directory, never the working directory.
+APP_ROOT = '/app'
+
+
+def ensure_app_importable():
+    """Put the application on the path, or say plainly that we are in the wrong place.
+
+    Self-contained on purpose. Making the caller pass the right -w or
+    -e PYTHONPATH would push this knowledge into every invocation, and get it
+    wrong the first time someone runs the script by hand.
+    """
+    if APP_ROOT not in sys.path:
+        sys.path.insert(0, APP_ROOT)
+    try:
+        import changedetectionio  # noqa: F401
+    except ImportError as e:
+        raise SystemExit(
+            "Cannot import the application from {}: {}\n"
+            "This probe reuses the app's OWN extractor, so it has to run inside the\n"
+            "changedetection container.\n"
+            "  fix: .\\contrib\\maku.ps1 site probe -Url <url>".format(APP_ROOT, e))
 
 
 def fetch(url, timeout, with_browser):
@@ -59,11 +98,17 @@ def _fetch_with_browser(url, timeout):
 
 def report_structured_prices(content):
     """What the Restock & Price processor would extract -- filter or no filter."""
+    # Imported OUTSIDE the try below. ensure_app_importable() has already proved
+    # the app is reachable, so a failure here is a real problem with the
+    # application and must not be reported as a property of the page.
+    from changedetectionio.processors.restock_diff.processor import get_itemprop_availability
+
     print('Restock & Price mode would find:')
     try:
-        from changedetectionio.processors.restock_diff.processor import get_itemprop_availability
         restock = get_itemprop_availability(content)
     except Exception as e:
+        # Now this claim is true: the extractor ran against THIS content and
+        # raised, which is exactly what a watch would do.
         print(f'  extraction raised {type(e).__name__}: {e}')
         print('  -> a Restock watch on this page would error rather than report a price.')
         return
@@ -122,7 +167,7 @@ def report_selector(content, selector):
         print('No -Selector given, so nothing to test. Pass one to see exactly what a')
         print('watch\'s "CSS/JSONPath/JQ/XPath Filter" would keep.')
         return
-    from changedetectionio import html_tools
+    from changedetectionio import html_tools   # proved importable at start-up
     print(f'Your selector: {selector}')
     try:
         html_block = html_tools.include_filters(include_filters=selector, html_content=content)
@@ -154,6 +199,8 @@ def main():
     parser.add_argument('--timeout', type=int, default=30)
     parser.add_argument('--with-browser', action='store_true')
     args = parser.parse_args()
+
+    ensure_app_importable()
 
     try:
         content, status, seconds, fetcher = fetch(args.url, args.timeout, args.with_browser)

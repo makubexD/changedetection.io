@@ -83,6 +83,23 @@ Confirm both before saving, rather than by rechecking and squinting at the row:
   -Selector '.tc-quote-rates button:nth-of-type(1) .tc-quote-rate-value span:first-child'
 ```
 
+### The app will offer to undo this, and the offer deletes your history
+
+Once these are text watches, each row shows:
+
+> **Switch to Restock & Price watch mode?**  `Yes`  `No`
+
+It appears because the page genuinely does publish ld+json price data -- the
+prompt is right about that and wrong about what it is for.
+
+**Click `No`.** It records the dismissal and the prompt stops appearing. Nothing
+else changes.
+
+**`Yes` is not a display toggle.** It sets the processor back to `restock_diff`
+-- the mode that cannot read Compra and reports Venta on both watches -- and it
+calls `clear_watch()`, which **discards every snapshot the watch has collected**.
+Two irreversible things behind the more inviting of the two buttons.
+
 **Do not key a selector on `data-selected`.** Both rate buttons carry it and it
 flips when the widget is clicked, so a filter built on it silently starts
 matching the other rate.

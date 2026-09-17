@@ -111,13 +111,58 @@ try {
     }
     Write-Pass 'http'
 
+    # The fork changes upstream BEHAVIOUR without patching an upstream file: a
+    # read-only mount of contrib/runtime plus PYTHONPATH, so python imports
+    # sitecustomize automatically and it patches the app after import. Nothing in
+    # the UI shows whether that arrived -- an absent mount looks exactly like a
+    # stock container -- so it is asserted here or not at all.
+    Write-Stage '5. Fork runtime patches are live'
+
+    & podman exec $container test -f /maku-runtime/sitecustomize.py 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Stop-Verify 'runtime' ("/maku-runtime/sitecustomize.py is not in the container -- the mount did not arrive.`n" +
+                               "        On the WSL backend podman does not translate every Windows path.")
+    }
+
+    # Present is not the same as FOUND. This is the check that PYTHONPATH is set
+    # and that /usr/local was prepended to rather than replaced.
+    $resolved = (& podman exec $container python -c "import sitecustomize; print(sitecustomize.__file__)" 2>&1 | Out-String).Trim()
+    if ($resolved -ne '/maku-runtime/sitecustomize.py') {
+        Stop-Verify 'runtime' "python resolves sitecustomize to '$resolved', expected /maku-runtime/sitecustomize.py"
+    }
+
+    # And FOUND is not the same as CORRECT.
+    $formatted = (& podman exec $container python -c "import sitecustomize; print(sitecustomize.format_number_locale(3.3715))" 2>&1 | Out-String).Trim()
+    if ($formatted -notin @('3.3715', '3,3715')) {
+        Stop-Verify 'runtime' "the replacement filter returned '$formatted' for 3.3715 -- expected the precision to be kept"
+    }
+    Write-Pass 'runtime' "sitecustomize loaded, 3.3715 keeps 4 dp"
+
+    # The strongest check available, and the only one that exercises the real
+    # module rather than the dummy in contrib/runtime/test_hook.py: import
+    # flask_app and read the filter off the live Jinja environment. `-w /app`
+    # is enough because for `python -c` sys.path[0] is the working directory.
+    #
+    # Best effort BY DESIGN. Importing flask_app standalone builds the whole
+    # Flask app, which may need arguments or env this throwaway container does
+    # not have. A failure here means "not proven", not "broken", and saying so
+    # is better than either failing the run or quietly claiming success.
+    $live = (& podman exec -w /app $container python -c "import changedetectionio.flask_app as f; print(f.app.jinja_env.filters['format_number_locale'].__module__)" 2>&1 | Out-String).Trim()
+    if ($live -eq 'sitecustomize') {
+        Write-Pass 'runtime' 'the hook fired against the real flask_app'
+    } else {
+        Write-Warn 'runtime' "could not confirm the hook against the real flask_app (got '$live')."
+        Write-Host "      Not a failure: the checks above prove the module loads and behaves."
+        Write-Host "      What is unproven is only that it patched THIS app's live Jinja env."
+    }
+
     if ($WithBrowser) {
         # Checked from INSIDE the app container, which is the connection that
         # matters. Testing it from the host would prove nothing: port 3000 is
         # pod-internal, and a browser that is running but unreachable is exactly
         # the failure this catches -- the app falls back silently and the Browser
         # Steps UI simply never appears.
-        Write-Stage "5. App can reach Chrome on $driverUrl"
+        Write-Stage "6. App can reach Chrome on $driverUrl"
         $probe = "python -c `"import socket; socket.create_connection(('localhost', 3000), 5).close()`""
         if (-not (Wait-ForExec $container $probe 15)) {
             Stop-Verify 'browser' "the app container cannot open a connection to localhost:3000" -WithLogs
@@ -140,7 +185,7 @@ try {
     # The point of the named volume: rootless Podman maps container root to an
     # unprivileged uid, so a host bind mount would arrive unwritable. This proves
     # the volume is real and outlives the container.
-    Write-Stage '6. Data survives the container being destroyed'
+    Write-Stage '7. Data survives the container being destroyed'
     & podman exec $container sh -c "echo persisted-ok > /datastore/.smoketest" | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Stop-Verify 'persistence' "could not write to /datastore -- check the volume mount" -WithLogs

@@ -292,6 +292,7 @@ filter, and what your selector actually matched.
 ' -A 'Mozilla/5.0' '<the product URL>'`. A reset connection or 30s with no bytes means the site, not your setup. |
 | Price detected but wrong, in **text** mode | Currency/decimal separator ambiguity, or you captured a "was" price. Check the Preview text and tighten the filter to the current price element. |
 | Price detected but wrong, in **Restock & Price** mode | **Do not tighten the filter — it is not read in this mode.** Either the page publishes a different figure than the one you want, or it is not a shop page at all. Run `maku.ps1 site probe -Url <page>` to see every offer it publishes, then [section 3](#3-when-the-price-is-not-detected-automatically). |
+| A deliberate **text** watch offers *"Switch to Restock & Price watch mode?"* | Click **No**, which only records the dismissal. **`Yes` reverts the processor AND calls `clear_watch()`, deleting every snapshot the watch has collected.** The prompt fires on any page carrying ld+json price data, including pages where price mode is the wrong tool. |
 | Two watches on one URL report the same price | Same cause, and it is conclusive: Restock mode reads the whole page and ignores per-watch filters. Change the processor, not the selector. |
 
 ---
