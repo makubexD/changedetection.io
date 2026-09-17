@@ -76,6 +76,30 @@ One watch per rate, both on `https://tucambista.pe`:
 Compra needs the trailing `span:first-child`; its value element also carries a
 `--` reference span, so without it the watch diffs `3.348--`. Venta's does not.
 
+### Do not put a numeric Condition on Compra
+
+Both watches are correct as **text** watches: they diff the rate and notify on
+any change. What does **not** work here is a threshold.
+
+| On screen | `extracted_number` |
+| --- | --- |
+| `3.345` | **3345** |
+| `3.3725` | `3.3725` |
+
+`price_parser` reads a dot before exactly **three** digits as a thousands
+separator, and the app builds the `extracted_number` field with that same call
+(`changedetectionio/conditions/default_plugin.py`). So *"extracted_number <
+3.40"* compares against 3345 and never fires, while the row on screen shows the
+number you expected. Nothing looks broken.
+
+It is not even a constant offset: on a day Compra prints `3.35` — two digits —
+the same watch extracts `3.35`. One watch, two scales, decided by the rate.
+
+This is not a bug to patch out. `1.099` on a European shop page really does mean
+one thousand and ninety-nine, and the page gives nothing that disambiguates it.
+**Alert on the change, not on a threshold** — and `site probe` now prints a
+warning under any number it catches being read this way.
+
 Confirm both before saving, rather than by rechecking and squinting at the row:
 
 ```powershell

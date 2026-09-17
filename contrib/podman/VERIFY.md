@@ -58,9 +58,10 @@ It asserts, in order:
 
 | Stage | What it proves |
 | --- | --- |
-| preflight | podman is running and the image exists |
+| preflight | podman is running, the image exists, and the port is free |
 | run | the containers start |
 | http | the app answers on the port — Flask started *and* finished its one-time setup |
+| runtime | the fork's `contrib/runtime` patches reached the container and behave — nothing in the UI shows this, so it is asserted here or not at all |
 | browser | the app can open a socket to Chrome, **was told where it is**, and defaults new watches to it |
 | persistence | the datastore survives the container being destroyed and recreated |
 
@@ -68,8 +69,15 @@ The browser stage is the one worth having. A listening port and a running Chrome
 container can both be healthy while the app has silently fallen back to Selenium
 — which is what happened twice in real use, looking fine both times.
 
-Useful options: `-Image` to verify a published image instead, `-Port` if 5000 is
-taken, `-KeepRunning` to leave it up for the manual checks below.
+**It publishes on 5099, not 5000.** This check runs on the machine the real
+deployment runs on, and the ordinary sequence there is `app update` then
+`app verify` — with a shared port that fails every time, and with `-WithBrowser`
+it fails as `Error: starting some containers: internal libpod error` (exit 126),
+because the pod's port is bound by its infra container and podman reports it from
+there. Preflight now refuses up front and names the port instead.
+
+Useful options: `-Image` to verify a published image instead, `-Port` to move it
+again, `-KeepRunning` to leave it up for the manual checks below.
 
 ### Prove Chrome is wired up
 

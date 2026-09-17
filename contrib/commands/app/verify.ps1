@@ -20,7 +20,10 @@
     Verify a published image instead of the locally built one.
 
 .PARAMETER Port
-    Host port to publish on during the test.
+    Host port to publish on during the test. Defaults to 5099, NOT the
+    deployment's 5000: this check runs on the machine where the real deployment
+    lives, and the ordinary sequence there is 'app update' then 'app verify'.
+    Sharing the port makes that sequence fail every time.
 
 .PARAMETER KeepRunning
     Leave it up afterwards for the manual checks in contrib/podman/VERIFY.md.
@@ -31,7 +34,7 @@
 param(
     [switch]$WithBrowser,
     [string]$Image,
-    [int]$Port = 5000,
+    [int]$Port = 5099,
     [switch]$KeepRunning
 )
 $ErrorActionPreference = 'Stop'
@@ -88,6 +91,16 @@ try {
     & podman image exists $image
     if ($LASTEXITCODE -ne 0) {
         Stop-Verify 'preflight' "image '$image' does not exist.`n        fix: .\contrib\maku.ps1 app build"
+    }
+    # Before anything is created, because nothing created later will name it.
+    # -WithBrowser publishes through the POD, and a pod's port is bound by its
+    # infra container when the FIRST container starts -- so a taken port aborts
+    # the browser run with 'internal libpod error' (exit 126) and says nothing
+    # about ports at all. That is what this turns into a sentence.
+    if (Test-PortInUse $Port) {
+        Stop-Verify 'preflight' ("something is already serving 127.0.0.1:$Port -- most likely the real" + [Environment]::NewLine +
+                                 "        deployment. This check must not share a port with it." + [Environment]::NewLine +
+                                 "        fix: drop -Port to use the default 5099, or pass one that is free")
     }
     Write-Pass 'preflight'
 

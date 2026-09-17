@@ -134,6 +134,25 @@ function Remove-Stack([string[]]$Containers, [string]$Pod) {
     if ($Pod)        { & podman pod rm -f $Pod     2>$null | Out-Null }
 }
 
+# Is something already serving this port on the host?
+#
+# ASK BEFORE CREATING THE POD, because the pod itself will not tell you. Creating
+# one binds nothing; its INFRA container binds when the first container starts,
+# so a taken port surfaces as a failure to run whatever that first container
+# happened to be -- 'Error: starting some containers: internal libpod error',
+# exit 126, with no mention of a port anywhere in it. The plain -p topology at
+# least says "address already in use".
+#
+# A connect, not a bind test: the question is whether something is SERVING here,
+# which is both the cause of the bind failure and the thing worth naming in the
+# message. On loopback a refusal comes back immediately.
+function Test-PortInUse([int]$Port) {
+    $client = [System.Net.Sockets.TcpClient]::new()
+    try     { $client.Connect('127.0.0.1', $Port); return $true }
+    catch   { return $false }
+    finally { $client.Dispose() }
+}
+
 # The pod owns the published port; containers inside must not publish their own.
 function New-AppPod([string]$Name, [int]$Port) {
     & podman pod create --name $Name -p "127.0.0.1:${Port}:5000" | Out-Null
@@ -252,6 +271,6 @@ function Get-ContainerEnv([string]$Container, [string]$Name) {
 }
 
 Export-ModuleMember -Function Get-PodmanNames, Test-PodmanReady, Build-Image, Remove-Stack,
-                              Get-ImageRevision, Get-RuntimeMountArgs,
+                              Get-ImageRevision, Get-RuntimeMountArgs, Test-PortInUse,
                               New-AppPod, Start-BrowserContainer, Start-AppContainer,
                               Wait-ForHttp, Wait-ForExec, Get-ContainerEnv

@@ -32,8 +32,19 @@ the fetched content are reported as such.
 
 import argparse
 import json
+import os
+import re
 import sys
 import time
+
+# Before any application import, which is what pulls in loguru. loguru fixes its
+# default handler's level from this variable the moment it is imported, and the
+# application's default is DEBUG -- three of its lines used to land in the middle
+# of this report, including "Using Playwright library as fetcher" on a run that
+# fetched over plain HTTP, which reads as a contradiction of our own first line.
+# setdefault, so LOGURU_LEVEL=DEBUG still works when the probe is the thing being
+# debugged.
+os.environ.setdefault('LOGURU_LEVEL', 'WARNING')
 
 # The application is importable inside the container only because its entry
 # script lives here, which makes /app become sys.path[0]:
@@ -129,7 +140,6 @@ def report_structured_prices(content):
 
 def report_ldjson_offers(content):
     """Every published offer, so "there is only one price here" is visible, not asserted."""
-    import re
     blocks = re.findall(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', content, re.S)
     offers = []
 
@@ -161,6 +171,39 @@ def report_ldjson_offers(content):
             print('    (one distinct price -- every watch on this URL reports it)')
 
 
+def read_as_group(text, amount):
+    """Did the parser turn '3.345' into 3345 -- reading the dot as a thousands separator?
+
+    A COMPARISON AGAINST WHAT THE PARSER ACTUALLY RETURNED, never a restatement
+    of its rules. price_parser's handling of a dot before exactly three digits is
+    its business and may change; this asks only whether the digits it produced
+    are the page's digits with the separator dropped. If the library ever starts
+    reading these as decimals, this stops firing instead of becoming wrong.
+    """
+    match = re.fullmatch(r'\D*(\d{1,3})\.(\d{3})\D*', (text or '').strip())
+    if not match or amount is None:
+        return False
+    parsed = str(amount)
+    if '.' in parsed:
+        parsed = parsed.rstrip('0').rstrip('.')
+    return parsed.lstrip('0') == ''.join(match.groups()).lstrip('0')
+
+
+def warn_if_grouped(text, amount):
+    """The number is right on screen and wrong in every Condition. Say so, here."""
+    if not read_as_group(text, amount):
+        return
+    print("  WARNING: the '.' was read as a THOUSANDS separator, not a decimal point.")
+    print(f"    {text.strip()!r} became {amount}. A Condition on \"extracted_number\" compares")
+    print('    THAT, not the number on the page -- the app builds the field with this same')
+    print('    parser (changedetectionio/conditions/default_plugin.py). So a rule like')
+    print('    "extracted_number < 3.40" can never fire, and nothing in the UI looks wrong.')
+    print('    It is not even stable: the same watch extracts 3.35 on a day the value')
+    print('    prints with two decimals instead of three.')
+    print('    -> here, alert on the change itself rather than on a numeric threshold.')
+    print('       contrib/podman/SITE-NOTES.md#tucambistape')
+
+
 def report_selector(content, selector):
     print()
     if not selector:
@@ -182,14 +225,21 @@ def report_selector(content, selector):
 
     text = html_tools.html_to_text(html_block).strip()
     print(f'  matched, text: {text!r}')
+    report_extracted_number(text)
+
+
+def report_extracted_number(text):
+    """The number a Condition would compare -- and whether it is the one on screen."""
     try:
         from price_parser import Price
-        amount = Price.fromstring(text).amount
-        print(f'  extracted_number -> {amount}'
-              if amount is not None else
-              '  extracted_number -> nothing (a Condition on this would never fire)')
     except ImportError:
-        pass
+        return          # running outside the container; the matched text still stands
+    amount = Price.fromstring(text).amount
+    if amount is None:
+        print('  extracted_number -> nothing (a Condition on this would never fire)')
+        return
+    print(f'  extracted_number -> {amount}')
+    warn_if_grouped(text, amount)
 
 
 def main():
