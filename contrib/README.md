@@ -15,16 +15,18 @@ off the `feat/*` branches, which stay proposable upstream unchanged.
 | **set up a machine from scratch** | **[`fork/SETUP.md`](fork/SETUP.md)** — the ordered path, with a check at every step |
 | get it running, fastest | [`podman/DEPLOY.md`](podman/DEPLOY.md) |
 | prove a deployment works, or run the test suite | [`podman/VERIFY.md`](podman/VERIFY.md) |
-| watch product prices | [`podman/PRICE-TRACKING.md`](podman/PRICE-TRACKING.md) · [`podman/SITE-NOTES.md`](podman/SITE-NOTES.md) |
-| understand who this clone commits and pushes as | `gid` — a separate tool, see [`fork/SETUP.md`](fork/SETUP.md) §2–4 |
+| watch a value on a page, and get alerted | [`podman/WATCHING.md`](podman/WATCHING.md) · [`podman/SITE-NOTES.md`](podman/SITE-NOTES.md) |
+| understand who this clone commits and pushes as | `gid` — a separate tool, see [`fork/SETUP.md`](fork/SETUP.md) Part 2 |
 | understand the branches | [`fork/FORK-MODEL.md`](fork/FORK-MODEL.md) |
 | know what CI does | [`fork/CI.md`](fork/CI.md) |
 
-Shortest path from nothing to a running app with Chrome:
+Shortest path from nothing to a running app with Chrome — the full ordered
+version, through to alerts arriving, is [`fork/SETUP.md`](fork/SETUP.md):
 
 ```powershell
-.\contrib\maku.ps1 app build
+.\contrib\maku.ps1 app build                   # slow the first time
 .\contrib\maku.ps1 app start -WithBrowser      # http://localhost:5000
+.\contrib\maku.ps1 app verify -WithBrowser     # must end PASSED
 ```
 
 ## One command, one grammar
@@ -53,7 +55,7 @@ grammar is discoverable without opening this file.
 Identity — who this clone commits and pushes as, and the pre-push guard that
 refuses anything else — is **not here**. It was never specific to this fork, so
 it lives in `gid`, installed once per machine and used in every repository on
-it. [`fork/SETUP.md`](fork/SETUP.md) §2–4 has the three commands.
+it. [`fork/SETUP.md`](fork/SETUP.md) Part 2 has the commands.
 
 Full help for any command:
 

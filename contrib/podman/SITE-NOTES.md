@@ -1,14 +1,14 @@
 # Site notes: tucambista, TOUS and Amazon
 
-The technique is the same for every shop and lives in
-[`PRICE-TRACKING.md`](PRICE-TRACKING.md) — follow that first. This page is only
-what differs per site: the URL to use, the header to set, and how each one
-refuses you.
+The technique lives in [`WATCHING.md`](WATCHING.md) — follow that first. This
+page is only what differs per site: the URL to use, the header to set, and how
+each one refuses you.
 
-> Both sites are JavaScript-rendered, so **Chrome must be on and the watch must
-> be using it** before anything here applies. That is
-> [`PRICE-TRACKING.md` §1](PRICE-TRACKING.md#1-turn-the-browser-on), and it is
-> where this usually goes wrong.
+> **Whether a browser is needed is per site, not a rule.** The two shops render
+> their prices client-side and need Chrome; tucambista does not, and turning it
+> on there costs memory and latency for nothing. `site probe` says which you are
+> looking at — if the value comes back over `plain HTTP (no browser)`, that watch
+> does not need one.
 
 ## Where each setting lives
 
@@ -28,10 +28,9 @@ other tab.
 
 ![The General tab, with Re-stock and Price detection selected under Processor](images/fig-processor.svg)
 
-> The figures are drawn from a real session on this build (`v0.60.3`) — same
-> labels, same order, same wording. They are diagrams rather than captured
-> screenshots, so they stay readable in both GitHub themes and can be diffed
-> when the UI moves.
+> Drawn from a real session — same labels, same order, same wording. They are
+> diagrams rather than screenshots, so they stay readable in both GitHub themes
+> and can be diffed when the UI moves.
 
 ---
 
@@ -39,8 +38,8 @@ other tab.
 
 **Not a shop.** It is a currency exchange, and it is here because it is the
 worked example of the failure that does not look like one — read
-[`PRICE-TRACKING.md` §3](PRICE-TRACKING.md#3-when-the-price-is-not-detected-automatically),
-"The other failure", first.
+[the failure that looks like success](WATCHING.md#the-failure-that-looks-like-success)
+first.
 
 **Do not use `Restock & Price` on this page.** The site publishes exactly one
 `price` in its structured data, and it is the **Venta** rate — sitting inside a
@@ -95,19 +94,16 @@ any change. What does **not** work here is a threshold.
 Those are one afternoon's rates; the next day's Compra of `3.344` extracted as
 **3344**. The digits are not the point — the *shape* is.
 
-`price_parser` reads a dot before exactly **three** digits as a thousands
-separator, and the app builds the `extracted_number` field with that same call
-(`changedetectionio/conditions/default_plugin.py`). So *"extracted_number <
-3.40"* compares against 3345 and never fires, while the row on screen shows the
-number you expected. Nothing looks broken.
+The mechanism is in
+[`WATCHING.md`](WATCHING.md#a-condition-on-extracted_number-never-fires); what
+matters here is that it is not a constant offset, so you cannot correct for it —
+on a day Compra prints `3.35` the same watch extracts `3.35`.
 
-It is not even a constant offset: on a day Compra prints `3.35` — two digits —
-the same watch extracts `3.35`. One watch, two scales, decided by the rate.
-
-This is not a bug to patch out. `1.099` on a European shop page really does mean
-one thousand and ninety-nine, and the page gives nothing that disambiguates it.
-**Alert on the change, not on a threshold** — and `site probe` now prints a
-warning under any number it catches being read this way.
+Not a bug to patch out either: `1.099` on a European shop page really does mean
+one thousand and ninety-nine, and the page gives nothing to disambiguate it.
+**Alert on the change, not on a threshold**, and read the direction out of the
+notification — [SETUP step 6](../fork/SETUP.md#6--get-notified) does that
+correctly, because Jinja's `| float` is not `price_parser`.
 
 Confirm both before saving, rather than by rechecking and squinting at the row:
 
@@ -245,7 +241,7 @@ page for that ASIN instead. It updates less often, but it will not block you.
 
 `https://www.tous.com/pe-es/cart` and `https://www.amazon.com/cart` both need you
 to be logged in, so they need your session cookie —
-[`PRICE-TRACKING.md` §8](PRICE-TRACKING.md#8-cart-pages-via-session-cookie).
+[`WATCHING.md` §8](WATCHING.md#cart-pages-via-session-cookie).
 
 Amazon's cart is among the most heavily defended pages on the site, and a
 headless browser reaching it from a datacenter IP is exactly the pattern they
@@ -258,14 +254,12 @@ for a shopping session you are actively running, nothing more.
 
 ## If it still does not work
 
+The general table is in
+[`WATCHING.md`](WATCHING.md#troubleshooting) — one copy, so it cannot drift.
+Only these are site-specific:
+
 | What you see | What it means |
 | --- | --- |
-| No **Playwright** option in Fetch Method | The app has no driver URL → [`VERIFY.md`](VERIFY.md#prove-chrome-is-wired-up) |
-| Only **two** options under Fetch Method | You are looking at **Settings → Fetching**, not the watch. The global setting lists only the real fetchers; a watch adds "System settings default" on top, because a watch can defer to the global one and the global one has nothing to defer to |
+| Worked for weeks, then stopped | A block (raise the interval), or the URL was never the stable form |
+| Row sits on **`Fetching…`** forever | The site is not answering — the `curl.exe` test for that site above |
 | No **Request** tab at all | This watch's processor has no request settings — re-add the watch |
-| Row says **`No information`** | The metadata has no price. Rechecking cannot help → [`PRICE-TRACKING.md` §3](PRICE-TRACKING.md#3-when-the-price-is-not-detected-automatically) |
-| Row sits on **`Fetching…`** forever | The site is not answering → the `curl.exe` test for that site above |
-| Preview shows a bare or unstyled page | Still on the basic fetcher — the Fetch Method was never saved |
-| Price detected but clearly wrong | Captured the "was" price, the list price or a subscription price — tighten the filter |
-| Alerts on every check, price unchanged | Threshold is 0 → set `2` |
-| Worked for weeks, then stopped | A block (raise the interval), or the URL was not the stable form |

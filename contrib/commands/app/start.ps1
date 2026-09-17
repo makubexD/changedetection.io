@@ -45,7 +45,31 @@ Test-PodmanReady
 $n     = Get-PodmanNames
 $image = if ($Image) { $Image } else { Get-ImagePin 'AppLocal' }
 
+# BEFORE Remove-Stack: a run that cannot succeed must not first tear down the
+# deployment that was working. A mistyped -Image is the ordinary way to get here.
+& podman image exists $image
+if ($LASTEXITCODE -ne 0) {
+    throw ("the image '$image' does not exist, so there is nothing to start." + [Environment]::NewLine +
+           "  fix: .\contrib\maku.ps1 app build" + [Environment]::NewLine +
+           "  (or pass -Image to run a published one instead)")
+}
+
 Remove-Stack @($n.App, $n.Browser) $n.Pod
+
+# AFTER Remove-Stack, and that order is the whole point: this command is meant to
+# be re-run over its own deployment, which is holding the port until the line
+# above removes it. Asked any earlier, the everyday restart would refuse itself.
+# Whatever still answers here is something else.
+#
+# Worth asking at all because -WithBrowser publishes through the POD, and a pod's
+# port is bound by its infra container when the FIRST container starts -- so a
+# taken port kills the browser run with 'internal libpod error' (exit 126),
+# before anything below can report it.
+if (Test-PortInUse $Port) {
+    throw ("something else is already serving 127.0.0.1:$Port." + [Environment]::NewLine +
+           "  fix: stop it, or publish this one elsewhere with -Port 5001" + [Environment]::NewLine +
+           "  to see what is there:  podman ps -a ; podman pod ps")
+}
 
 $spec = @{
     Name = $n.App; Image = $image; Volume = $n.Volume
@@ -61,7 +85,11 @@ if ($WithBrowser) {
 }
 
 if (-not (Start-AppContainer $spec)) {
-    throw "podman run failed. Port $Port may be in use -- try -Port 5001, or see what is left over with: podman ps -a ; podman pod ps"
+    # The two ordinary causes -- no image, port taken -- are now refused at
+    # preflight by name, so this is genuinely "something else" and must not
+    # guess. podman printed its own reason immediately above.
+    throw ("podman run failed (see podman's message above)." + [Environment]::NewLine +
+           "  what is left over:  podman ps -a ; podman pod ps")
 }
 
 Write-Pass 'start' "http://localhost:$Port$(if ($WithBrowser) { "  (pod $($n.Pod))" })"

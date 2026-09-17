@@ -19,7 +19,7 @@
 #     PLAYWRIGHT_DRIVER_URL=ws://browser-sockpuppet-chrome:3000 \
 #       podman-compose -f contrib/podman/podman-compose.yml --profile browser up -d
 #
-# Needs podman-compose >= 1.0.4 for --profile. See ./PRICE-TRACKING.md for what
+# Needs podman-compose >= 1.0.4 for --profile. See ./WATCHING.md for what
 # the browser unlocks, and ./README.md for setup and rootless gotchas.
 
 services:

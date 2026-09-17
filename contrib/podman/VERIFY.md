@@ -9,36 +9,16 @@ said "not to be confused with the other one":
 | Does **the code** still work? | `tests run` — [below](#2-run-the-projects-own-tests) |
 
 Neither proves a given shop is watchable from here. Only a real watch does, and
-that is [`PRICE-TRACKING.md`](PRICE-TRACKING.md).
+that is [`WATCHING.md`](WATCHING.md).
 
 ---
 
-## Prerequisites (Windows, one time)
+## Prerequisites
 
-Podman on Windows runs a Linux VM on top of WSL2, so WSL has to exist first.
-Installing it is the **only step that needs administrator rights**.
+Installing Podman is [`../fork/SETUP.md` step 1](../fork/SETUP.md#1--podman) —
+written once, there, because it is the same install for every path.
 
-```powershell
-# elevated PowerShell
-wsl --install --no-distribution
-```
-
-Then **reboot**. This is not optional — WSL is not usable until you do. After
-the reboot, from a normal PowerShell:
-
-```powershell
-wsl --status                              # version info, not "not installed"
-winget install RedHat.Podman-Desktop
-podman machine init --cpus 4 --memory 4096 --disk-size 60
-podman machine start
-podman info                               # a hard gate: nothing below works until this does
-```
-
-The 2 CPU / 2GB default is not enough once Chrome-based fetching is enabled,
-and changing it later means recreating the machine.
-
-On **Linux**, install Podman from your distribution (`dnf install podman`,
-`apt install podman`) — there is no VM and no `podman machine`.
+**`podman info` must succeed before anything on this page works.**
 
 ---
 
@@ -65,16 +45,13 @@ It asserts, in order:
 | browser | the app can open a socket to Chrome, **was told where it is**, and defaults new watches to it |
 | persistence | the datastore survives the container being destroyed and recreated |
 
-**The `runtime` stage is the only proof the decimals patch is alive**, and that
-is not a convenience. The filter it replaces, `format_number_locale`, renders in
-exactly one place — the RESTOCK & PRICE column of the watch list — and upstream
-formats it with a hard-coded `"%.2f"`, which is the whole bug. So the patch is
-visible only on a **Restock & Price** watch whose price carries more than two
-decimals. A text watch never calls the filter at all, and a price like
-`1,099.00` looks identical patched or stock. A watch list can therefore consist
-entirely of watches that exercise none of it, while the patch is working
-perfectly — which is exactly why it is asserted here instead of being looked for
-on screen.
+**The `runtime` stage is the only proof the decimals patch is alive.** The filter
+it replaces renders in exactly one place — the RESTOCK & PRICE column — and
+upstream formats it with a hard-coded `"%.2f"`, which is the whole bug. So it is
+visible only on a Restock watch whose price has more than two decimals: a text
+watch never calls it, and `1,099.00` looks identical either way. A whole watch
+list can exercise none of it while the patch works perfectly, which is why it is
+asserted here rather than looked for on screen.
 
 The browser stage is the one worth having. A listening port and a running Chrome
 container can both be healthy while the app has silently fallen back to Selenium
@@ -190,31 +167,22 @@ They cover exactly what has broken in real use:
 | `tests/visualselector/test_fetch_data.py` | The Visual Filter Selector, browser-backed |
 | `tests/fetchers/test_content.py` | Fetcher behaviour through Chrome |
 
-**They never touch the public internet.** Fixture pages are served by a live
-server inside the pod, so no retailer can block them, nothing goes flaky because
-a shop changed its markup, and a result means the same thing every run.
-
-That is also their limit: they tell you the *code* works. They cannot tell you
-whether a particular shop will answer *your* connection.
+**They never touch the public internet** — fixture pages are served inside the
+pod, so nothing is flaky because a shop changed its markup. That is also their
+limit: they prove the *code* works, never that a given shop will answer *your*
+connection.
 
 ### The suites
 
-```powershell
-.\contrib\maku.ps1 tests run                 # price   (the default)
-.\contrib\maku.ps1 tests run -Suite unit     # fast, no browser at all
-.\contrib\maku.ps1 tests run -Suite browser  # everything browser-backed
-.\contrib\maku.ps1 tests run -Suite all      # the lot; slow
-```
+`unit` for a fast sanity check; `price` after touching fetching or price
+detection.
 
-| Suite | Browser | Roughly |
+| `-Suite` | Browser | Roughly |
 | --- | --- | --- |
-| `price` | yes | minutes |
+| `price` *(default)* | yes | minutes |
 | `unit` | no | under a minute |
 | `browser` | yes | minutes |
 | `all` | yes | long — leave it running |
-
-Start with `unit` for a fast sanity check, `price` when you have touched anything
-about fetching or price detection.
 
 ### Running one test
 
@@ -229,14 +197,10 @@ something under `changedetectionio/`.
 
 ### Reading the results
 
-Every run writes a full log to `contrib/podman/test-logs/`, named by timestamp
-and suite. The console prints the last line pytest itself wrote — that line is
-the verdict, and nothing here reconstructs it. On failure it also lists each
-failing test; open the log and search for that name to find the assertion, the
-values compared, and the captured output. The command exits non-zero, so it can
-gate anything you want it to.
-
-Logs are untracked and accumulate — delete the folder whenever.
+The console prints the last line pytest wrote — that line is the verdict, and
+nothing here reconstructs it. Failures are listed by name; the full log is in
+`contrib/podman/test-logs/` (untracked, delete whenever), where searching that
+name gives the assertion and captured output. Exits non-zero, so it can gate.
 
 ### A reasonable order after a change
 
@@ -300,6 +264,6 @@ Back up before anything destructive — see
 | `browser container never became ready` | `podman logs cdio-suite-browser` | Chrome could not start; usually `/dev/shm` |
 | Browser-backed tests fail, `unit` passes | — | Almost always Chrome, not your change |
 | `-NoBuild was passed but … does not exist` | — | First run in this clone. Run once without it |
-| Tests pass, the real watch still shows nothing | — | Expected and informative: the code is fine, so it is the site or the network → [`PRICE-TRACKING.md`](PRICE-TRACKING.md) |
+| Tests pass, the real watch still shows nothing | — | Expected and informative: the code is fine, so it is the site or the network → [`WATCHING.md`](WATCHING.md) |
 | `podman-compose: command not found` | `pip show podman-compose` | `pip install podman-compose`. `podman compose` is a different program |
 | Everything is slow | — | The repo is on the Windows filesystem, reached over 9p → [`DEPLOY.md`](DEPLOY.md#build-speed) |

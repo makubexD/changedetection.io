@@ -9,7 +9,7 @@ is untouched and still works exactly as it did.
 
 - Setting up a machine in order: [`../fork/SETUP.md`](../fork/SETUP.md)
 - Proving it works, and running the test suite: [`VERIFY.md`](VERIFY.md)
-- Using it to track prices: [`PRICE-TRACKING.md`](PRICE-TRACKING.md)
+- Using it to track prices: [`WATCHING.md`](WATCHING.md)
 
 ## The short version
 
@@ -34,25 +34,9 @@ install does not touch your watches.
 
 ## Windows: Podman Desktop + WSL2
 
-Podman on Windows runs a Linux VM (`podman machine`) on top of **WSL2**, so WSL
-has to exist first. Installing it needs administrator rights — the only elevated
-step.
-
-```powershell
-# elevated PowerShell, once; reboot afterwards
-wsl --install --no-distribution
-
-winget install RedHat.Podman-Desktop
-
-# 2 CPUs / 2GB is not enough once Chrome-based fetching is enabled
-podman machine init --cpus 4 --memory 4096 --disk-size 60
-podman machine start
-
-podman info      # must succeed before anything below will work
-```
-
-Step-by-step with expected output at each stage:
-[`VERIFY.md`](VERIFY.md#prerequisites-windows-one-time).
+Installing it is [`../fork/SETUP.md` step 1](../fork/SETUP.md#1--podman) — one
+elevated command, a reboot, then `podman machine init --cpus 4 --memory 4096`.
+`podman info` must succeed before anything below works.
 
 ### Build speed
 
