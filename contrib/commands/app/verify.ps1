@@ -73,6 +73,19 @@ function Show-Logs {
     Write-Host "--- end of logs ---" -ForegroundColor Yellow
 }
 
+# A pass-or-fail question for the container. No answer AT ALL is its own kind of
+# failure and gets its own sentence: it means python never reached the print, so
+# comparing what came back against the expected value would be reporting a
+# broken measurement as a property of the image.
+function Get-RuntimeValue([string]$Setup, [string]$Expression) {
+    $result = Get-ContainerPythonValue $container $Setup $Expression
+    if ($null -eq $result.Value) {
+        Stop-Verify 'runtime' ("python in the container did not answer. It said:" +
+                               [Environment]::NewLine + $result.Output)
+    }
+    return $result.Value
+}
+
 function Stop-Verify([string]$Stage, [string]$Detail, [switch]$WithLogs) {
     Write-Fail $Stage $Detail
     if ($WithLogs) { Show-Logs }
@@ -139,13 +152,13 @@ try {
 
     # Present is not the same as FOUND. This is the check that PYTHONPATH is set
     # and that /usr/local was prepended to rather than replaced.
-    $resolved = (& podman exec $container python -c "import sitecustomize; print(sitecustomize.__file__)" 2>&1 | Out-String).Trim()
+    $resolved = Get-RuntimeValue 'import sitecustomize' 'sitecustomize.__file__'
     if ($resolved -ne '/maku-runtime/sitecustomize.py') {
         Stop-Verify 'runtime' "python resolves sitecustomize to '$resolved', expected /maku-runtime/sitecustomize.py"
     }
 
     # And FOUND is not the same as CORRECT.
-    $formatted = (& podman exec $container python -c "import sitecustomize; print(sitecustomize.format_number_locale(3.3715))" 2>&1 | Out-String).Trim()
+    $formatted = Get-RuntimeValue 'import sitecustomize' 'sitecustomize.format_number_locale(3.3715)'
     if ($formatted -notin @('3.3715', '3,3715')) {
         Stop-Verify 'runtime' "the replacement filter returned '$formatted' for 3.3715 -- expected the precision to be kept"
     }
@@ -153,20 +166,29 @@ try {
 
     # The strongest check available, and the only one that exercises the real
     # module rather than the dummy in contrib/runtime/test_hook.py: import
-    # flask_app and read the filter off the live Jinja environment. `-w /app`
-    # is enough because for `python -c` sys.path[0] is the working directory.
+    # flask_app and read the filter off the live Jinja environment.
     #
-    # Best effort BY DESIGN. Importing flask_app standalone builds the whole
-    # Flask app, which may need arguments or env this throwaway container does
-    # not have. A failure here means "not proven", not "broken", and saying so
-    # is better than either failing the run or quietly claiming success.
-    $live = (& podman exec -w /app $container python -c "import changedetectionio.flask_app as f; print(f.app.jinja_env.filters['format_number_locale'].__module__)" 2>&1 | Out-String).Trim()
-    if ($live -eq 'sitecustomize') {
+    # Best effort BY DESIGN, so it does NOT go through Get-RuntimeValue.
+    # Importing flask_app standalone builds the whole Flask app, which may need
+    # arguments or env this throwaway container does not have. A failure here
+    # means "not proven", not "broken", and saying so is better than either
+    # failing the run or quietly claiming success.
+    #
+    # That is also exactly why it has to be honest about WHICH it is. This check
+    # once read its own captured output wrong -- the app's loguru lines go to
+    # stderr, they were folded into the compared string, and the warning below
+    # printed on a run where the hook had in fact fired. Doubt is expensive here:
+    # it is cast on the one thing no other check can reach.
+    $live = Get-ContainerPythonValue $container 'import changedetectionio.flask_app as f' `
+                                     "f.app.jinja_env.filters['format_number_locale'].__module__"
+    if ($live.Value -eq 'sitecustomize') {
         Write-Pass 'runtime' 'the hook fired against the real flask_app'
     } else {
-        Write-Warn 'runtime' "could not confirm the hook against the real flask_app (got '$live')."
+        $said = if ($null -eq $live.Value) { $live.Output } else { "'$($live.Value)'" }
+        Write-Warn 'runtime' "could not confirm the hook against the real flask_app."
         Write-Host "      Not a failure: the checks above prove the module loads and behaves."
         Write-Host "      What is unproven is only that it patched THIS app's live Jinja env."
+        Write-Host "      python said: $said"
     }
 
     if ($WithBrowser) {

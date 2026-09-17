@@ -43,10 +43,16 @@ worked example of the failure that does not look like one — read
 "The other failure", first.
 
 **Do not use `Restock & Price` on this page.** The site publishes exactly one
-`price` in its structured data — `3.3715 PEN`, its **Venta** rate — and it sits
-inside a `MobileApplication` / `SoftwareApplication` offer describing the
-TuCambista app, not the exchange rate. Restock mode finds it, shows it, and
-attaches a change arrow to it. Everything looks healthy.
+`price` in its structured data, and it is the **Venta** rate — sitting inside a
+`MobileApplication` / `SoftwareApplication` offer describing the TuCambista app,
+not the exchange rate. Restock mode finds it, shows it, and attaches a change
+arrow to it. Everything looks healthy.
+
+No figure is quoted for it here, because the rate moves every day and a pinned
+number in a note goes quietly false. The *identity* is the durable part, and one
+`site probe` run re-checks it: the price under "Restock & Price mode would find"
+and the number the **Venta** selector matches are the same one, and it is never
+Compra.
 
 Two consequences, both permanent:
 
@@ -85,6 +91,9 @@ any change. What does **not** work here is a threshold.
 | --- | --- |
 | `3.345` | **3345** |
 | `3.3725` | `3.3725` |
+
+Those are one afternoon's rates; the next day's Compra of `3.344` extracted as
+**3344**. The digits are not the point — the *shape* is.
 
 `price_parser` reads a dot before exactly **three** digits as a thousands
 separator, and the app builds the `extracted_number` field with that same call

@@ -61,7 +61,7 @@ It asserts, in order:
 | preflight | podman is running, the image exists, and the port is free |
 | run | the containers start |
 | http | the app answers on the port — Flask started *and* finished its one-time setup |
-| runtime | the fork's `contrib/runtime` patches reached the container and behave — nothing in the UI shows this, so it is asserted here or not at all |
+| runtime | the fork's `contrib/runtime` patches reached the container and behave — nothing in the UI shows this, so it is asserted here or not at all. It reports **twice**: that the module loads and keeps 4 dp, then whether the hook is confirmed against the live `flask_app`. Only the second proves the patch reached the *running application*; a `WARN` there leaves that one thing unproven and fails nothing |
 | browser | the app can open a socket to Chrome, **was told where it is**, and defaults new watches to it |
 | persistence | the datastore survives the container being destroyed and recreated |
 

@@ -261,6 +261,47 @@ function Wait-ForExec([string]$Container, [string]$Command, [int]$Tries) {
     return $false
 }
 
+$script:ValueMarker = 'MAKU_VALUE='
+
+# The value a one-liner PRINTED, picked out of everything else the container
+# wrote. $null when the marked line never appeared at all -- which means python
+# did not reach the print, and is a different fact from "it printed the wrong
+# thing".
+#
+# A MARKED LINE, not "take the last one". Through a pipe stdout is block
+# buffered and stderr is not, so which of the two lands last is an accident of
+# flushing rather than something to build a check on.
+function Select-PythonValue([string]$Text) {
+    foreach ($line in ($Text -split "`n")) {
+        if ($line.StartsWith($script:ValueMarker)) {
+            return $line.Substring($script:ValueMarker.Length).Trim()
+        }
+    }
+    return $null
+}
+
+# Ask a running container one question, and get back an answer the container's
+# own logging cannot corrupt.
+#
+# STDERR IS STILL CAPTURED, deliberately. When the import genuinely fails, the
+# traceback there is the only thing that says why, and the caller has nothing
+# else to put in its message. It simply must not be part of the ANSWER -- and it
+# was: eleven loguru lines from 'import changedetectionio.flask_app' landed
+# inside the string a verify check compared, so a check that had PASSED reported
+# that it could not confirm the fork's patch.
+#
+# LOGURU_LEVEL is for that failure path, not for the comparison. The marker
+# already makes the value immune to whatever else gets printed; this only keeps
+# the diagnostic readable when there is one to read.
+#
+# -w /app for every caller: with 'python -c', sys.path[0] is the working
+# directory, so importing the application needs it and nothing else is harmed.
+function Get-ContainerPythonValue([string]$Container, [string]$Setup, [string]$Expression) {
+    $code   = "$Setup; print('$script:ValueMarker' + str($Expression))"
+    $output = (& podman exec -e LOGURU_LEVEL=WARNING -w /app $Container python -c $code 2>&1 | Out-String)
+    return [pscustomobject]@{ Value = (Select-PythonValue $output); Output = $output.Trim() }
+}
+
 # Reads an environment variable from inside a running container. Used to prove
 # the app was actually TOLD about the browser -- reachable but unconfigured looks
 # identical from the outside.
@@ -273,4 +314,5 @@ function Get-ContainerEnv([string]$Container, [string]$Name) {
 Export-ModuleMember -Function Get-PodmanNames, Test-PodmanReady, Build-Image, Remove-Stack,
                               Get-ImageRevision, Get-RuntimeMountArgs, Test-PortInUse,
                               New-AppPod, Start-BrowserContainer, Start-AppContainer,
-                              Wait-ForHttp, Wait-ForExec, Get-ContainerEnv
+                              Wait-ForHttp, Wait-ForExec, Get-ContainerEnv,
+                              Select-PythonValue, Get-ContainerPythonValue
