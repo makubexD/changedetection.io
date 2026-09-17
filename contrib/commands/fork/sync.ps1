@@ -109,13 +109,22 @@ try {
     # only thing able to satisfy it.
     Assert-UpstreamRemote
 
+    # The identity check now lives in `gid`, which is installed per machine
+    # rather than carried in this repository -- see contrib/fork/SETUP.md. It is
+    # an OPTIONAL dependency here: a sync is refused when gid says the identity
+    # is wrong, but never merely because gid is absent. A missing optional tool
+    # must not block a sync, and the pre-push hook still refuses on its own if
+    # anything actually tries to leave with the wrong identity.
     if ($SkipIdentityCheck) {
         Write-Warn 'identity' "check SKIPPED by request -- pushing as $(& git config user.name)."
-    } else {
-        & (Join-Path $PSScriptRoot '..\identity\show.ps1')
+    } elseif (Get-Command gid -ErrorAction SilentlyContinue) {
+        & gid
         if ($LASTEXITCODE -ne 0) {
             throw 'Identity check failed (above). Fix it, or re-run with -SkipIdentityCheck.'
         }
+    } else {
+        Write-Warn 'identity' 'gid is not installed, so the identity was NOT verified here.'
+        Write-Host "         install it, then re-run:  npm install -g gid"
     }
     Assert-CleanTree
 

@@ -25,7 +25,7 @@
 .EXAMPLE
     .\contrib\maku.ps1 app start -WithBrowser
 .EXAMPLE
-    .\contrib\maku.ps1 auth repair -WhatIf
+    .\contrib\maku.ps1 tests run -Suite unit
 #>
 $ErrorActionPreference = 'Stop'
 
