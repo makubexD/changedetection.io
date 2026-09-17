@@ -65,6 +65,17 @@ It asserts, in order:
 | browser | the app can open a socket to Chrome, **was told where it is**, and defaults new watches to it |
 | persistence | the datastore survives the container being destroyed and recreated |
 
+**The `runtime` stage is the only proof the decimals patch is alive**, and that
+is not a convenience. The filter it replaces, `format_number_locale`, renders in
+exactly one place — the RESTOCK & PRICE column of the watch list — and upstream
+formats it with a hard-coded `"%.2f"`, which is the whole bug. So the patch is
+visible only on a **Restock & Price** watch whose price carries more than two
+decimals. A text watch never calls the filter at all, and a price like
+`1,099.00` looks identical patched or stock. A watch list can therefore consist
+entirely of watches that exercise none of it, while the patch is working
+perfectly — which is exactly why it is asserted here instead of being looked for
+on screen.
+
 The browser stage is the one worth having. A listening port and a running Chrome
 container can both be healthy while the app has silently fallen back to Selenium
 — which is what happened twice in real use, looking fine both times.

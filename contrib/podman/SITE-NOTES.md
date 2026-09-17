@@ -128,6 +128,13 @@ prompt is right about that and wrong about what it is for.
 **Click `No`.** It records the dismissal and the prompt stops appearing. Nothing
 else changes.
 
+The dismissal is written straight to disk as the click is handled, not held in
+memory for a later flush, so it survives `app update`, a rebuilt container and a
+reboot. Nothing a recheck does touches it. **One thing brings the prompt back:**
+`Clear history` on that watch, which resets the flag along with everything else
+— the same call `Yes` makes. If the prompt reappears months from now, that is
+what happened, and it still means nothing new about the page.
+
 **`Yes` is not a display toggle.** It sets the processor back to `restock_diff`
 -- the mode that cannot read Compra and reports Venta on both watches -- and it
 calls `clear_watch()`, which **discards every snapshot the watch has collected**.
