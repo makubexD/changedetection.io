@@ -51,7 +51,7 @@ the app has silently fallen back to Selenium — which is exactly what happened
 twice in real use, looking like a healthy deployment both times. The only thing
 that distinguishes them is the fetcher label, and until now the only thing
 reading that label was a human following a table in
-[`../podman/GUIDE-TOUS.md`](../podman/GUIDE-TOUS.md). Now a job fails instead.
+[`../podman/VERIFY.md`](../podman/VERIFY.md). Now a job fails instead.
 
 It reuses [`../podman/podman-compose.yml`](../podman/podman-compose.yml) rather
 than carrying a CI-only copy: that file is plain Compose spec, so `docker
@@ -139,7 +139,7 @@ Python application with a datastore.
 
 ## Which branch the workflows live on
 
-All four live on **`maku-release` only**, alongside `contrib/fork/`. They name
+All four live on **`maku-release` only**, alongside `contrib/`. They name
 this fork's image, its release branch, and its repository, so they are kept off
 `master` (a pristine mirror) and off the `feat/*` branches, which stay
 proposable upstream unchanged.
@@ -147,7 +147,7 @@ proposable upstream unchanged.
 Upstream's own test workflows are **disabled at repository level** rather than
 patched — workflow enable/disable is repo state, so it needs no commit, survives
 every sync, and applies to the mirror branch too, which cannot carry a fix of
-its own. See [`README.md`](README.md) for why this fork does not re-run
+its own. See [`FORK-MODEL.md`](FORK-MODEL.md) for why this fork does not re-run
 upstream's ~50-job matrix.
 
 ## When a run goes red
@@ -160,4 +160,4 @@ upstream's ~50-job matrix.
 | Chrome renderer crashes, "Target closed" | `/dev/shm` too small. `shm_size: 2gb` is set in the compose file |
 | `Live preview` fails immediately | `PREVIEW_PASSWORD` is not set. It refuses rather than exposing an open instance |
 | Tunnel reports no URL | Cloudflare quick tunnels are best-effort and occasionally unavailable. Re-run |
-| A build breaks right after a browser image change | The browser is pinned by digest for this reason. See [`../podman/README.md`](../podman/README.md) |
+| A build breaks right after a browser image change | The browser is pinned by digest for this reason. See [`../podman/DEPLOY.md`](../podman/DEPLOY.md) |

@@ -9,8 +9,8 @@ that shops publish (JSON-LD, OpenGraph, microdata), pulls out price and stock
 status, and gives you numeric thresholds to trigger on. Use that mode and most of
 the work is already done for you.
 
-> Podman setup lives in [README.md](README.md); how to verify the stack works is
-> in [TESTING.md](TESTING.md). This document is about using the app.
+> Podman setup lives in [DEPLOY.md](DEPLOY.md); proving the stack works is in
+> [VERIFY.md](VERIFY.md). This document is about using the app.
 
 ---
 
@@ -23,7 +23,7 @@ Start the stack with Chrome:
 
 ```powershell
 # simplest
-.\contrib\podman\run.ps1 -WithBrowser
+.\contrib\podman\app start -WithBrowser
 
 # or with compose
 $env:PLAYWRIGHT_DRIVER_URL = "ws://browser-sockpuppet-chrome:3000"
@@ -35,40 +35,14 @@ Restarting this way does not touch your existing watches — they live in the
 
 ### How to know it actually worked
 
-**First, that the container got the setting:**
-
 ```powershell
-podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'
+.\contrib\maku.ps1 app verify -WithBrowser
 ```
 
-Prints `ws://localhost:3000` → good. Prints nothing → the app has no browser, and
-nothing below will work.
-
-**Then, in the UI.** Open any watch → **Edit** → **Request** tab and read the
-**Fetch Method** options. (**Request**, not **General** — **General** carries the
-URL, Processor and interval only.) The label tells you what the app actually connected to:
-
-There are **three** radio options, always. The middle one is the one that
-answers the question:
-
-| Option | What it means |
-| --- | --- |
-| `Basic fast Plaintext/HTTP Client` | Raw HTTP, no browser. The default, and useless for a JS-rendered price |
-| `Playwright Chromium/Javascript via 'ws://localhost:3000'` | Chrome is wired up ✅ — pick this one |
-| `System settings default` | Follow **Settings → Fetching → Fetch Method** instead of deciding per watch |
-
-If the middle option instead reads `WebDriver Chrome/Javascript`, with no URL
-after it, the app never received `PLAYWRIGHT_DRIVER_URL` and fell back to
-Selenium ❌.
-
-`System settings default` is not a fourth fetcher — it is a deferral, stored as
-`system` and resolved at fetch time. It is the better choice when you want every
-watch to follow one global setting; pick the explicit Playwright option when you
-want this watch pinned to Chrome no matter what the global default becomes.
-
-The URL in that label matches your topology: `ws://localhost:3000` for
-`run.ps1 -WithBrowser` and `podman kube play`, `ws://browser-sockpuppet-chrome:3000`
-for compose and Quadlet.
+That proves the app can reach Chrome and was actually told where it is. The
+UI-level confirmation — the three **Fetch Method** radios, what each one means,
+and what it looks like when the app has silently fallen back to Selenium — is in
+[VERIFY.md](VERIFY.md#prove-chrome-is-wired-up). It is written once, there.
 
 ### Now switch the watch to it — this part is not optional
 
@@ -239,8 +213,8 @@ the global default applies to everything otherwise.
 | No **Browser Steps** tab at all | **Most likely: this watch is not on the Playwright fetcher.** That tab follows the watch's own Fetch Method, not whether a browser exists. Edit → Request → select the Playwright option → Save → re-open. |
 | Fetch Method says `WebDriver Chrome/Javascript`, never Playwright | The app has no `PLAYWRIGHT_DRIVER_URL`, so it fell back to Selenium. Check with `podman exec changedetection sh -c 'echo $PLAYWRIGHT_DRIVER_URL'`. Pods use `ws://localhost:3000`, compose/Quadlet use `ws://browser-sockpuppet-chrome:3000` — they are not interchangeable. |
 | **Visual Filter Selector** says "Sorry, this functionality only works with fetchers that support Javascript and screenshots" | Same cause: the watch is on the basic fetcher. That tab is always visible, so its presence never proved anything. |
-| Watch stuck "Checking" forever | Browser unreachable or wedged: `.\contrib\podman\logs.ps1 -Browser`. |
-| Chrome errors: "Target closed", renderer crashes | `/dev/shm` too small. `--shm-size=2g` (run.ps1 sets this), `shm_size: 2gb` in compose, the `dshm` emptyDir in the kube manifest. |
+| Watch stuck "Checking" forever | Browser unreachable or wedged: `.\contrib\maku.ps1 app logs -Browser`. |
+| Chrome errors: "Target closed", renderer crashes | `/dev/shm` too small. `--shm-size=2g` (app start sets this), `shm_size: 2gb` in compose, the `dshm` emptyDir in the kube manifest. |
 | Notifications on every check, price unchanged | Set **Threshold (%)** to 1–2. Whitespace or a rotating banner inside your filter also does this — tighten the selector. |
 | `403` / `503` / CAPTCHA | The site is blocking automated access. Increase the interval first. Some sites will not be watchable at all. |
 | No response at all — the fetch hangs until it times out | Harsher than a `403`: some WAFs simply never answer a client they distrust, so there is no status code to read. Test it from outside the app: `curl -sS -m 30 -o /dev/null -w '%{http_code} %{time_total}s
@@ -256,8 +230,8 @@ with every label quoted as the app shows it, use the per-site guides:
 
 | Site | Guide |
 | --- | --- |
-| tous.com | [GUIDE-TOUS.md](GUIDE-TOUS.md) |
-| amazon.com | [GUIDE-AMAZON.md](GUIDE-AMAZON.md) |
+| tous.com | [SITE-NOTES.md](SITE-NOTES.md#touscom) |
+| amazon.com | [SITE-NOTES.md](SITE-NOTES.md#amazoncom) |
 
 Both start with the same Step 0 — proving Chrome is actually connected — because
 that is where this usually goes wrong.
