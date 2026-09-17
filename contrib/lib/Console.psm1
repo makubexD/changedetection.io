@@ -69,5 +69,34 @@ function Write-Refusal([string]$Name, [string]$Message) {
     }
 }
 
+# The actions a run actually TOOK, as opposed to the narrative it printed on the
+# way past. A long run scrolls; this is the part worth keeping, rendered once at
+# the end as one timestamped block.
+#
+# $global:, not $script:. Every command does Import-Module -Force, which
+# re-initialises module scope -- so a list held there would be wiped the moment
+# 'app update' handed over to 'app start', losing everything recorded before it.
+if (-not $global:MakuActions) { $global:MakuActions = [System.Collections.ArrayList]::new() }
+
+# State CHANGES only. "The image is current" is an observation and belongs in the
+# narrative above; only things still true after the run ends belong in here.
+function Add-Action([string]$Verb, [string]$Detail) {
+    [void]$global:MakuActions.Add([pscustomobject]@{ At = Get-Date; Verb = $Verb; Detail = $Detail })
+}
+
+# Renders and CLEARS, and the clearing is the load-bearing half: 'app update'
+# hands off to a relaunched child process, and the dispatcher calls this too.
+# Draining makes a double-printed record structurally impossible rather than
+# something each caller has to remember not to cause.
+function Write-ActionLog {
+    if ($global:MakuActions.Count -eq 0) { return }
+    Write-Stage 'actions taken'
+    foreach ($a in $global:MakuActions) {
+        Write-Host ("  {0}  {1,-10} {2}" -f $a.At.ToString('HH:mm:ss'), $a.Verb, $a.Detail)
+    }
+    $global:MakuActions.Clear()
+}
+
 Export-ModuleMember -Function Write-Stage, Write-Pass, Write-Warn, Write-Fail, `
-                              New-Refusal, Test-IsRefusal, Write-Refusal
+                              New-Refusal, Test-IsRefusal, Write-Refusal, `
+                              Add-Action, Write-ActionLog

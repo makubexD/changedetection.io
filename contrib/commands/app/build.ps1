@@ -26,4 +26,5 @@ Test-PodmanReady
 # up in this line.
 $image = Get-ImagePin 'AppLocal'
 Build-Image $image -NoCache:$NoCache
+Add-Action 'built' "$image from $((& git rev-parse --short HEAD).Trim())"
 Write-Pass 'build' $image

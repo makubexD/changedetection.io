@@ -111,7 +111,7 @@ Then re-run `app verify -WithBrowser` before trusting it.
 ## Updating to the latest code
 
 One command does the whole thing — pull, rebuild if and only if the pull touched
-the image, restart:
+the image, restart if and only if the running deployment no longer matches:
 
 ```powershell
 .\contrib\maku.ps1 app update -WithBrowser
@@ -145,6 +145,47 @@ to one of them can change the image**:
 `app update` applies this table for you and prints which files, if any, forced
 the rebuild. **When in doubt, just rebuild** — with the layer cache warm, a
 rebuild that changes nothing re-uses every layer and finishes in seconds.
+
+### When it restarts, and when it leaves the deployment alone
+
+A rebuild is not the only reason to restart, and an update is not a reason on
+its own. `app update` inspects the container that is actually running and
+restarts only when one of these is true, printing which:
+
+| It restarts because | Why that matters |
+| --- | --- |
+| nothing is running, or the container is not `running` | there is nothing to leave alone |
+| the image is not the one the container was started from | a rebuild landed, or `-Image` changed |
+| `contrib/runtime/` is newer than the container's start time | that directory is mounted in, and `sitecustomize.py` is read once at interpreter start — so a tooling-only pull still needs a restart |
+| `-WithBrowser` differs from how it is running | the topology asked for is not the one that is up |
+| `-Port` differs from the container's `BASE_URL` | same |
+
+Otherwise it says so and stops, leaving a working deployment up. To restart
+regardless:
+
+```powershell
+.\contrib\maku.ps1 app update -WithBrowser -Force
+```
+
+`-Force` overrides only this decision. The pull and the rebuild check make their
+own, and it does not touch either.
+
+### The actions record
+
+Every run ends with the state changes it made, timestamped — one block to keep,
+rather than a scroll to read back:
+
+```
+-- actions taken
+  14:32:01  pulled     997f4801 -> 434cbc68
+  14:32:02  removed    changedetection, browser-sockpuppet-chrome, pod changedetection-pod
+  14:32:05  started    changedetection.io:dev on 127.0.0.1:5000 (pod changedetection-pod)
+```
+
+A run that fails prints it too, covering what it had already done before it
+stopped. A run that changed nothing says that as well — which is the line worth
+having when something did not take effect and you need to know whether this
+command was the reason.
 
 ## Linux: Quadlet (systemd)
 

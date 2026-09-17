@@ -73,17 +73,34 @@ Remove-Stack @($n.App, $n.Browser) $n.Pod
 
 # AFTER Remove-Stack, and that order is the whole point: this command is meant to
 # be re-run over its own deployment, which is holding the port until the line
-# above removes it. Asked any earlier, the everyday restart would refuse itself.
-# Whatever still answers here is something else.
+# above removes it.
 #
 # Worth asking at all because -WithBrowser publishes through the POD, and a pod's
 # port is bound by its infra container when the FIRST container starts -- so a
 # taken port kills the browser run with 'internal libpod error' (exit 126),
 # before anything below can report it.
+#
+# WAIT, DO NOT REFUSE. The first version of this said "whatever still answers
+# here is something else", and that was wrong: Remove-Stack returning is not the
+# same as the host-side forwarder having closed its socket. An ordinary
+# 'app update' on a healthy deployment refused itself on that gap.
 if (Test-PortInUse $Port) {
-    throw ("something else is already serving 127.0.0.1:$Port." + [Environment]::NewLine +
-           "  fix: stop it, or publish this one elsewhere with -Port 5001" + [Environment]::NewLine +
-           "  to see what is there:  podman ps -a ; podman pod ps")
+    if (-not (Wait-ForPortFree $Port 15)) {
+        $holder = Get-PortHolder $Port
+        $fix = if ($holder) {
+            "  it is:  $holder" + [Environment]::NewLine +
+            "  fix: podman rm -f that container, or publish this one elsewhere with -Port 5001"
+        } else {
+            # Not pointing at 'podman ps' here, deliberately: podman has just
+            # said it does not own this port, so that list is empty by
+            # construction and naming it would waste the reader's next move.
+            "  podman does not own it, so something else on this machine is holding it." + [Environment]::NewLine +
+            "  fix: netstat -ano | findstr :$Port    -- stop that process," + [Environment]::NewLine +
+            "       or publish this one elsewhere with -Port 5001"
+        }
+        throw ("something is already serving 127.0.0.1:$Port and did not release it." +
+               [Environment]::NewLine + $fix)
+    }
 }
 
 $spec = @{
@@ -107,6 +124,8 @@ if (-not (Start-AppContainer $spec)) {
            "  what is left over:  podman ps -a ; podman pod ps")
 }
 
+Add-Action 'started' ("$image on 127.0.0.1:$Port" +
+                      $(if ($WithBrowser) { " (pod $($n.Pod), with browser)" } else { "" }))
 Write-Pass 'start' "http://localhost:$Port$(if ($WithBrowser) { "  (pod $($n.Pod))" })"
 Write-Host ""
 if ($WithBrowser) {

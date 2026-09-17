@@ -136,8 +136,17 @@ $named      = $bound.Named
 # does a few lines above for argument-binding errors.
 try {
     & $script @positional @named
-    exit $LASTEXITCODE
+    # Captured BEFORE anything else runs. Only native commands set $LASTEXITCODE,
+    # but the record below is one call away from shelling out, and a dispatcher
+    # that silently reported the wrong exit code would be very hard to notice.
+    $code = $LASTEXITCODE
+    Write-ActionLog
+    exit $code
 } catch {
+    # BEFORE the message, so the refusal stays the last thing on screen. A run
+    # that died halfway is exactly when what it had already done matters most --
+    # which is why this is on the failure path at all, not only the happy one.
+    Write-ActionLog
     if (Test-IsRefusal $_) {
         Write-Refusal "$Resource $Action" $_.Exception.Message
     } else {

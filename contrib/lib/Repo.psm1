@@ -58,7 +58,10 @@ function Assert-CleanTree {
     $dirty = & git status --porcelain --untracked-files=no
     if ($LASTEXITCODE -ne 0) { throw "Not a git repository." }
     if ($dirty) {
-        throw "Working tree has uncommitted changes -- commit or stash first:`n$dirty"
+        # -join, because $dirty is an ARRAY and PowerShell interpolates one with
+        # SPACES -- so every changed path arrived on a single run-on line.
+        throw ("Working tree has uncommitted changes -- commit or stash first:" +
+               [Environment]::NewLine + ($dirty -join [Environment]::NewLine))
     }
 }
 

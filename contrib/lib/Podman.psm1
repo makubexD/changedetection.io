@@ -134,8 +134,37 @@ function Get-ImageRevision([string]$Image) {
 #
 # The named volume -- every watch and its history -- is untouched by any of it.
 function Remove-Stack([string[]]$Containers, [string]$Pod) {
-    if ($Containers) { & podman rm -f @Containers 2>$null | Out-Null }
-    if ($Pod)        { & podman pod rm -f $Pod     2>$null | Out-Null }
+    # @() around each call, and NOTHING returned. A function that emits nothing
+    # still assigns $null through '+=', which would put a blank in the record;
+    # and returning the list would put it on the pipeline, where every caller
+    # runs at a script's top level and it would simply print itself.
+    $removed = @()
+    foreach ($c in @($Containers | Where-Object { $_ })) {
+        $removed += @(Remove-PodmanObject @('rm', '-f', $c) $c)
+    }
+    if ($Pod) { $removed += @(Remove-PodmanObject @('pod', 'rm', '-f', $Pod) "pod $Pod") }
+    if ($removed) { Add-Action 'removed' ($removed -join ', ') }
+}
+
+# One removal, with "there was nothing there" told apart from "it would not go".
+#
+# THE OLD FORM DISCARDED BOTH. `2>$null | Out-Null` with no exit check meant a
+# pod that failed to die was indistinguishable from one that never existed --
+# and a pod that survives keeps the published port, so the failure resurfaced
+# minutes later as a port refusal with no way back to this line.
+function Remove-PodmanObject([string[]]$PodmanArgs, [string]$Label) {
+    $out = (& podman @PodmanArgs 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0) {
+        # `podman rm -f` exits 0 for something that was not there, printing
+        # nothing, and echoes the id only when it actually removed one. That is
+        # the whole signal separating "cleaned up" from "nothing to clean up".
+        return $(if ($out) { @($Label) } else { @() })
+    }
+    # Older podman reports the absent case as an error instead. Same meaning.
+    if ($out -match 'no such|no pod with name|not exist') { return @() }
+    throw ("could not remove $Label." + [Environment]::NewLine +
+           "  podman said: $out" + [Environment]::NewLine +
+           "  fix: podman ps -a ; podman pod ps")
 }
 
 # Is something already serving this port on the host?
@@ -155,6 +184,102 @@ function Test-PortInUse([int]$Port) {
     try     { $client.Connect('127.0.0.1', $Port); return $true }
     catch   { return $false }
     finally { $client.Dispose() }
+}
+
+# Waits for a port WE JUST RELEASED to actually go quiet.
+#
+# Teardown is not instantaneous. On Windows podman's host-side forwarder closes
+# its listener a moment AFTER 'podman pod rm -f' has returned, so a connect test
+# still succeeds against a pod that is already gone. The everyday restart is the
+# one path that frees this port and asks for it back in the same breath, so it
+# is the one path guaranteed to race -- and refusing there was refusing the
+# ordinary case, which is the worst possible place to be strict.
+#
+# A genuine squatter never goes quiet, so this still fails, just later.
+function Wait-ForPortFree([int]$Port, [int]$TimeoutSec) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        if (-not (Test-PortInUse $Port)) { return $true }
+        Start-Sleep -Milliseconds 250
+    }
+    # Asked once more after the deadline, so a timeout of 0 still answers the
+    # question rather than always answering "no".
+    return -not (Test-PortInUse $Port)
+}
+
+# Which podman container publishes this port, or $null when podman does not own
+# it at all.
+#
+# Worth asking before refusing, because 'podman ps' CANNOT show a process podman
+# did not start -- so a refusal whose only suggestion is 'podman ps -a' sends the
+# reader to an empty list in exactly the case where they most need a next step.
+#
+# --all and --external: a -WithBrowser deployment publishes through the POD, and
+# the binding belongs to its infra container, which a plain 'podman ps' hides.
+function Get-PortHolder([int]$Port) {
+    $rows = & podman ps --all --external --format '{{.Names}} {{.Ports}}' 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    foreach ($row in @($rows)) {
+        if ($row -match ":$Port->") { return $row.Trim() }
+    }
+    return $null
+}
+
+# The id of an image by name, or $null when there is no such image locally.
+# 'app update' compares this against the image a running container was started
+# from, which is the only comparison that survives a rebuild under the same tag.
+function Get-ImageId([string]$Image) {
+    $id = & podman image inspect $Image --format '{{.Id}}' 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ($id | Out-String).Trim()
+}
+
+# What the running deployment actually IS, so a caller can compare it against
+# what was asked for. $null when there is no such container -- podman reports
+# that as an error rather than an empty result.
+#
+# ONE template, no quotes inside it, following Get-ImageRevision above: the
+# '{{index . "key"}}' form puts double quotes inside an argument that PowerShell
+# then re-quotes for a Windows command line, and that round trip is host-specific.
+# Env goes last so the three fixed fields keep their positions however many
+# variables the container carries.
+#
+# Only fields this file's callers actually read. A template naming one podman
+# does not have fails the whole call, and the caller would read that as "no such
+# container" and restart a deployment that was fine.
+function Get-ContainerState([string]$Name) {
+    $fmt  = '{{.Image}}|{{.State.Status}}|{{.State.StartedAt}}{{range .Config.Env}}|{{.}}{{end}}'
+    $line = & podman container inspect $Name --format $fmt 2>$null
+    if ($LASTEXITCODE -ne 0) { return $null }
+    $parts = @(($line | Out-String).Trim() -split '\|')
+    if ($parts.Count -lt 3) { return $null }
+    return [pscustomobject]@{
+        Image     = $parts[0]
+        Status    = $parts[1]
+        StartedAt = ConvertFrom-PodmanTime $parts[2]
+        Env       = ConvertTo-EnvMap @($parts | Select-Object -Skip 3)
+    }
+}
+
+# podman stamps times with NANOSECOND precision and .NET parses at most seven
+# fractional digits, failing outright on nine. UTC, because the only thing this
+# is ever compared against is a file's LastWriteTimeUtc.
+function ConvertFrom-PodmanTime([string]$Text) {
+    $stamp  = $Text -replace '(\.\d{1,7})\d*', '$1'
+    $parsed = [datetime]::MinValue
+    if (-not [datetime]::TryParse($stamp, [ref]$parsed)) { return [datetime]::MinValue }
+    return $parsed.ToUniversalTime()
+}
+
+# 'KEY=value' entries to a lookup. Split on the FIRST '=' only: values routinely
+# contain more of them, and BASE_URL is read back from here.
+function ConvertTo-EnvMap([string[]]$Entries) {
+    $map = @{}
+    foreach ($e in $Entries) {
+        $i = $e.IndexOf('=')
+        if ($i -gt 0) { $map[$e.Substring(0, $i)] = $e.Substring($i + 1) }
+    }
+    return $map
 }
 
 # The pod owns the published port; containers inside must not publish their own.
@@ -316,7 +441,9 @@ function Get-ContainerEnv([string]$Container, [string]$Name) {
 }
 
 Export-ModuleMember -Function Get-PodmanNames, Test-PodmanReady, Build-Image, Remove-Stack,
-                              Get-ImageRevision, Get-RuntimeMountArgs, Test-PortInUse,
+                              Get-ImageRevision, Get-ImageId, Get-RuntimeMountArgs,
+                              Test-PortInUse, Wait-ForPortFree, Get-PortHolder,
+                              Get-ContainerState,
                               New-AppPod, Start-BrowserContainer, Start-AppContainer,
                               Wait-ForHttp, Wait-ForExec, Get-ContainerEnv,
                               Select-PythonValue, Get-ContainerPythonValue
