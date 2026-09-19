@@ -33,15 +33,29 @@
     the element you want is built by JavaScript. Requires the stack to be running
     with -WithBrowser.
 
+.PARAMETER Find
+    Text to search for in the fetched content. Prints ranked CSS selector
+    candidates for every element that contains it, each with the text it would
+    isolate -- for when you do not have a selector yet and want the probe to
+    suggest one, rather than testing one you already wrote.
+
+.PARAMETER Json
+    Print one JSON report instead of prose. Same underlying facts as the default
+    report; for a caller that wants to branch on them rather than parse text.
+
 .EXAMPLE
     .\contrib\maku.ps1 site probe -Url https://tucambista.pe
 .EXAMPLE
     .\contrib\maku.ps1 site probe -Url https://tucambista.pe -Selector '.tc-quote-rates button:nth-of-type(2) .tc-quote-rate-value'
+.EXAMPLE
+    .\contrib\maku.ps1 site probe -Url https://tucambista.pe -Find '3.3'
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Url,
     [string]$Selector,
+    [string]$Find,
     [switch]$WithBrowser,
+    [switch]$Json,
     [int]$TimeoutSec = 30
 )
 $ErrorActionPreference = 'Stop'
@@ -64,7 +78,9 @@ if ($LASTEXITCODE -ne 0) {
 
 $probeArgs = @('exec', $container, 'python', '/maku-runtime/probe.py', '--url', $Url, '--timeout', "$TimeoutSec")
 if ($Selector)    { $probeArgs += @('--selector', $Selector) }
+if ($Find)        { $probeArgs += @('--find', $Find) }
 if ($WithBrowser) { $probeArgs += '--with-browser' }
+if ($Json)        { $probeArgs += '--json' }
 
 & podman @probeArgs
 if ($LASTEXITCODE -ne 0) { throw "probe failed (exit $LASTEXITCODE)." }

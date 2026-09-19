@@ -16,6 +16,7 @@ off the `feat/*` branches, which stay proposable upstream unchanged.
 | get it running, fastest | [`podman/DEPLOY.md`](podman/DEPLOY.md) |
 | prove a deployment works, or run the test suite | [`podman/VERIFY.md`](podman/VERIFY.md) |
 | watch a value on a page, and get alerted | [`podman/WATCHING.md`](podman/WATCHING.md) · [`podman/SITE-NOTES.md`](podman/SITE-NOTES.md) |
+| generate a watch from a URL, automatically | [`.claude/skills/watch-from-url/USAGE.md`](../.claude/skills/watch-from-url/USAGE.md) |
 | understand who this clone commits and pushes as | `gid` — a separate tool, see [`fork/SETUP.md`](fork/SETUP.md) Part 2 |
 | understand the branches | [`fork/FORK-MODEL.md`](fork/FORK-MODEL.md) |
 | know what CI does | [`fork/CI.md`](fork/CI.md) |
@@ -47,7 +48,9 @@ grammar is discoverable without opening this file.
 
 | | | |
 | --- | --- | --- |
-| `app` | `build` `start` `stop` `logs` `update` `verify` | running the application |
+| `app` | `build` `start` `stop` `logs` `update` `verify` `defaults` | running the application |
+| `site` | `probe` | ask a URL what a watch would actually see there |
+| `watch` | `apply` | create a watch from a plan file, and prove it checked |
 | `tests` | `run` | the project's own pytest suite |
 | `fork` | `sync` `status` | keeping up with upstream |
 | `images` | `show` `pin` `verify` | the pinned container images |

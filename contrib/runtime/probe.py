@@ -147,8 +147,15 @@ def report_structured_prices(content):
     print('     whole page, never the watch\'s filter.')
 
 
-def report_ldjson_offers(content):
-    """Every published offer, so "there is only one price here" is visible, not asserted."""
+def collect_ldjson_offers(content):
+    """Every (enclosing type, price, currency) published in this page's ld+json.
+
+    Returns the ENCLOSING type, not a node's own -- every offer node is itself
+    typed "Offer", which tells you nothing; "a MobileApplication's offer" tells
+    you the page is advertising an app and the price is not a product's. This is
+    the one fact that catches the tucambista class of failure: a confident,
+    correctly-extracted price that is not the one you asked for.
+    """
     blocks = re.findall(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', content, re.S)
     offers = []
 
@@ -156,10 +163,6 @@ def report_ldjson_offers(content):
         if isinstance(node, dict):
             own = node.get('@type', enclosing)
             if 'price' in node:
-                # Report the ENCLOSING type, not this node's own. Every one of
-                # these is an "Offer", which tells you nothing; "a
-                # MobileApplication's offer" tells you the page is advertising an
-                # app and the price you are reading is not a product's.
                 offers.append((enclosing, node.get('price'), node.get('priceCurrency', '')))
             for value in node.values():
                 walk(value, own)
@@ -172,8 +175,14 @@ def report_ldjson_offers(content):
             walk(json.loads(block), '?')
         except ValueError:
             continue
+    return offers, len(blocks)
+
+
+def report_ldjson_offers(content):
+    """Every published offer, so "there is only one price here" is visible, not asserted."""
+    offers, block_count = collect_ldjson_offers(content)
     if offers:
-        print(f'  published offers in {len(blocks)} ld+json block(s):')
+        print(f'  published offers in {block_count} ld+json block(s):')
         for kind, price, currency in offers:
             print(f'    offer on {kind:<22} price {price} {currency}'.rstrip())
         if len({(p, c) for _, p, c in offers}) == 1 and len(offers) > 1:
@@ -213,6 +222,120 @@ def warn_if_grouped(text, amount):
     print('       contrib/podman/SITE-NOTES.md#tucambistape')
 
 
+def ancestor_chain(el):
+    """[root-most ... el] as 'tag:nth-of-type(n)' strings, for building a CSS path."""
+    parts = []
+    node = el
+    while getattr(node, 'name', None) and node.name not in ('html', '[document]'):
+        idx = 1 + len(list(node.find_previous_siblings(node.name)))
+        parts.append(f'{node.name}:nth-of-type({idx})')
+        node = node.parent
+    return list(reversed(parts))
+
+
+def unique_class_selector(el, soup):
+    """A single class that selects only this element, or None."""
+    for cls in el.get('class') or []:
+        selector = f'.{cls}'
+        if len(soup.select(selector)) == 1:
+            return selector
+    return None
+
+
+def shortest_unique_path(el, soup):
+    """The shortest suffix of the ancestor chain that selects only this element.
+
+    Falls back to the full chain when even the whole thing is not unique -- two
+    elements can be structurally identical, and that is worth showing as-is
+    rather than hiding behind an exception.
+    """
+    chain = ancestor_chain(el)
+    for i in range(len(chain) - 1, -1, -1):
+        candidate = ' > '.join(chain[i:])
+        if len(soup.select(candidate)) == 1:
+            return candidate
+    return ' > '.join(chain)
+
+
+def anchor_selector(el, soup):
+    """An id or a page-unique class on THIS element, or None."""
+    if el.get('id'):
+        return f"#{el['id']}"
+    return unique_class_selector(el, soup)
+
+
+def find_anchor(el, soup):
+    """Nearest ANCESTOR with an id or unique class, and the tag-path down to el.
+
+    The value on screen is often in a bare inner <span> with no identity of its
+    own -- exactly the tucambista case in SITE-NOTES.md, where the id/class sits
+    one level up and the real text is in a plain wrapper. Anchoring the selector
+    there instead of at document root is what keeps it short AND resistant to
+    unrelated markup changing elsewhere on the page.
+    """
+    chain = []
+    node = el
+    while getattr(node, 'name', None) and node.name not in ('html', '[document]'):
+        parent = node.parent
+        if not getattr(parent, 'name', None):
+            break
+        idx = 1 + len(list(node.find_previous_siblings(node.name)))
+        chain.append(f'{node.name}:nth-of-type({idx})')
+        anchor = anchor_selector(parent, soup)
+        if anchor:
+            return anchor, list(reversed(chain))
+        node = parent
+    return None, None
+
+
+def build_selector(el, soup):
+    """Rank: #id -> unique class -> an ancestor's id/class + a short path -> full path."""
+    anchor_here = anchor_selector(el, soup)
+    if anchor_here:
+        return anchor_here
+    anchor, chain = find_anchor(el, soup)
+    if anchor:
+        candidate = f"{anchor} > " + ' > '.join(chain)
+        if len(soup.select(candidate)) == 1:
+            return candidate
+    return shortest_unique_path(el, soup)
+
+
+def find_candidates(soup, text):
+    """Elements whose own text contains `text`, ranked, each with what it isolates.
+
+    Walks up from the TEXT NODE to its immediate parent tag, not to whichever
+    ancestor first contains the string -- the parent is the tightest wrapper, and
+    a selector on it is the one least likely to also catch a sibling.
+    """
+    candidates, seen = [], set()
+    for node in soup.find_all(string=lambda s: s and text in s):
+        el = node.parent
+        if not getattr(el, 'name', None):
+            continue
+        selector = build_selector(el, soup)
+        if selector in seen:
+            continue
+        seen.add(selector)
+        candidates.append((selector, el.get_text(strip=True)))
+    return candidates
+
+
+def report_find(content, text):
+    print()
+    print(f'Elements containing {text!r}:')
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(content, 'html.parser')
+    candidates = find_candidates(soup, text)
+    if not candidates:
+        print(f'  nothing in the fetched content contains {text!r}.')
+        print('  If the page builds this element in JavaScript, retry with --with-browser.')
+        return
+    for selector, matched_text in candidates[:10]:
+        print(f'  {selector}')
+        print(f'    isolates: {matched_text!r}')
+
+
 def report_selector(content, selector):
     print()
     if not selector:
@@ -237,13 +360,25 @@ def report_selector(content, selector):
     report_extracted_number(text)
 
 
+def price_parser_available():
+    try:
+        import price_parser  # noqa: F401
+        return True
+    except ImportError:
+        return False      # running outside the container
+
+
+def collect_extracted_number(text):
+    """The number a Condition would compare. Only call once price_parser_available()."""
+    from price_parser import Price
+    return Price.fromstring(text).amount
+
+
 def report_extracted_number(text):
     """The number a Condition would compare -- and whether it is the one on screen."""
-    try:
-        from price_parser import Price
-    except ImportError:
-        return          # running outside the container; the matched text still stands
-    amount = Price.fromstring(text).amount
+    if not price_parser_available():
+        return           # the matched text still stands; we just can't parse it here
+    amount = collect_extracted_number(text)
     if amount is None:
         print('  extracted_number -> nothing (a Condition on this would never fire)')
         return
@@ -282,6 +417,22 @@ def describe_conditional(validators, head_status):
             '     collected. Every check downloads the whole page.']
 
 
+def compute_conditional(url, timeout, response_headers):
+    """(validators, head_status), asked for real -- see _conditional_head for why.
+
+    Returns (None, None) when maku_conditional_fetch is not importable (running
+    outside the container), which the caller must check before trusting either
+    value -- {} is a legitimate "no validators" answer, None is "did not ask".
+    """
+    from maku_conditional_fetch import pick_validators
+    headers = response_headers
+    if headers is None:
+        # A browser fetch gave us no headers; ask plain HTTP directly instead.
+        headers = _plain_headers(url, timeout)
+    validators = pick_validators(headers)
+    return validators, _conditional_head(url, timeout, validators)
+
+
 def report_conditional_support(url, timeout, response_headers):
     """Can this URL be polled cheaply, and therefore often?
 
@@ -291,22 +442,15 @@ def report_conditional_support(url, timeout, response_headers):
     print()
     print('Cheap polling (conditional requests):')
     try:
-        from maku_conditional_fetch import pick_validators
+        validators, head_status = compute_conditional(url, timeout, response_headers)
     except ImportError:
         print('  cannot answer -- maku_conditional_fetch is not on the path, so this is')
         print('  running outside the container. Use: .\\contrib\\maku.ps1 site probe')
         return
-
-    headers = response_headers
-    if headers is None:
-        # A browser fetch gave us no headers. The saving only ever applies to the
-        # plain fetcher anyway, so ask plain HTTP directly and say so.
+    if response_headers is None:
         print('  (asked over plain HTTP -- a browser fetch runs JavaScript and can never')
         print('   be answered from a cache, whatever the server sends)')
-        headers = _plain_headers(url, timeout)
-
-    validators = pick_validators(headers)
-    for line in describe_conditional(validators, _conditional_head(url, timeout, validators)):
+    for line in describe_conditional(validators, head_status):
         print(line)
 
 
@@ -316,6 +460,25 @@ def _plain_headers(url, timeout):
         return requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=timeout).headers
     except Exception:
         return {}
+
+
+def classify_conditional(validators, head_status):
+    """The same four outcomes as describe_conditional, as one machine-readable word.
+
+    Kept alongside describe_conditional rather than replacing it: that function
+    owns the WORDING a human reads, this owns the WORD a generator branches on.
+    Both are driven by the same two inputs so they cannot disagree about which
+    of the four cases applies -- only about how to say it.
+    """
+    if not validators:
+        return 'no_validators'
+    if head_status == 304:
+        return 'supported'
+    if head_status == 200:
+        return 'ignored'
+    if head_status is None:
+        return 'unproven'
+    return 'refuses_head'
 
 
 def _conditional_head(url, timeout, validators):
@@ -337,12 +500,77 @@ def _conditional_head(url, timeout, validators):
         return None
 
 
+def build_json_report(url, timeout, with_browser, content, status, seconds, fetcher, headers, selector, find):
+    """The same facts the text report prints, as one dict -- for a caller that
+    wants to branch on them instead of parsing prose. Calls the same collectors
+    the print functions call, so the two renderings cannot drift apart.
+    """
+    report = {'url': url, 'status': status, 'seconds': round(seconds, 2),
+              'bytes': len(content), 'fetcher': fetcher}
+    report['restock'] = collect_restock(content)
+    offers, block_count = collect_ldjson_offers(content)
+    report['ldjson_offers'] = [{'enclosing_type': k, 'price': p, 'currency': c} for k, p, c in offers]
+    report['ldjson_block_count'] = block_count
+    if selector:
+        report['selector'] = collect_selector_match(content, selector)
+    if find:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        report['find'] = [{'selector': s, 'text': t} for s, t in find_candidates(soup, find)[:10]]
+    report['conditional'] = collect_conditional_report(url, timeout, headers)
+    return report
+
+
+def collect_restock(content):
+    """The Restock & Price verdict as data: a price dict, None, or an error string."""
+    from changedetectionio.processors.restock_diff.processor import get_itemprop_availability
+    try:
+        restock = get_itemprop_availability(content)
+    except Exception as e:
+        return {'error': f'{type(e).__name__}: {e}'}
+    if restock.get('price') is None:
+        return None
+    return {'price': restock.get('price'), 'currency': restock.get('currency'),
+            'availability': restock.get('availability')}
+
+
+def collect_selector_match(content, selector):
+    """What --selector matched, as data: text, extracted number, the misread flag."""
+    from changedetectionio import html_tools
+    try:
+        html_block = html_tools.include_filters(include_filters=selector, html_content=content)
+    except Exception as e:
+        return {'selector': selector, 'error': f'{type(e).__name__}: {e}'}
+    if not html_block.strip():
+        return {'selector': selector, 'matched': False}
+    text = html_tools.html_to_text(html_block).strip()
+    result = {'selector': selector, 'matched': True, 'text': text}
+    if price_parser_available():
+        amount = collect_extracted_number(text)
+        result['extracted_number'] = str(amount) if amount is not None else None
+        if amount is not None:
+            result['thousands_separator_misread'] = read_as_group(text, amount)
+    return result
+
+
+def collect_conditional_report(url, timeout, headers):
+    """The cheap-polling verdict as data: {supported: bool|None, verdict, validators}."""
+    try:
+        validators, head_status = compute_conditional(url, timeout, headers)
+    except ImportError:
+        return {'verdict': 'unavailable', 'note': 'running outside the container'}
+    verdict = classify_conditional(validators, head_status)
+    return {'verdict': verdict, 'validators': validators or {}, 'head_status': head_status}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', required=True)
     parser.add_argument('--selector', default='')
+    parser.add_argument('--find', default='', help='find candidate selectors for elements containing this text')
     parser.add_argument('--timeout', type=int, default=30)
     parser.add_argument('--with-browser', action='store_true')
+    parser.add_argument('--json', action='store_true', help='print one JSON report instead of prose')
     args = parser.parse_args()
 
     ensure_app_importable()
@@ -350,14 +578,25 @@ def main():
     try:
         content, status, seconds, fetcher, headers = fetch(args.url, args.timeout, args.with_browser)
     except Exception as e:
-        print(f'Fetch failed: {type(e).__name__}: {e}')
-        print('A watch on this URL would fail the same way.')
+        if args.json:
+            print(json.dumps({'error': f'{type(e).__name__}: {e}', 'url': args.url}))
+        else:
+            print(f'Fetch failed: {type(e).__name__}: {e}')
+            print('A watch on this URL would fail the same way.')
         return 1
+
+    if args.json:
+        report = build_json_report(args.url, args.timeout, args.with_browser, content, status,
+                                    seconds, fetcher, headers, args.selector, args.find)
+        print(json.dumps(report, indent=2, default=str))
+        return 0
 
     print(f'Status     {status} in {seconds:.1f}s, {len(content):,} bytes   ({fetcher})')
     print()
     report_structured_prices(content)
     report_ldjson_offers(content)
+    if args.find:
+        report_find(content, args.find)
     report_selector(content, args.selector)
     report_conditional_support(args.url, args.timeout, headers)
     return 0

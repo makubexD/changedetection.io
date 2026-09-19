@@ -23,6 +23,19 @@ which is what decides how often you can afford to check it.
 If the value already arrived over `plain HTTP (no browser)`, that watch does not
 need Chrome. Turning it off saves memory and latency.
 
+**Or let it be worked out for you.** Everything below — which recipe, which
+selector, which processor, what interval — is the procedure the `watch-from-url`
+skill follows automatically, probing the page the same way and asking only what
+the evidence leaves genuinely ambiguous:
+
+```
+watch the price on <url>, alert me under $300
+```
+
+See [`.claude/skills/watch-from-url/USAGE.md`](../../.claude/skills/watch-from-url/USAGE.md)
+for real prompts and what comes back. The rest of this document is what the
+skill itself is built on, and is still the reference for doing it by hand.
+
 ---
 
 # Part 1 — Recipes
@@ -289,6 +302,15 @@ curl -H "x-api-key: <key>" "http://localhost:5000/api/v1/watch?recheck_all=1"
 
 The key is in **Settings → API**; the header is only enforced when you have
 enabled it there. The UUID is in the watch's URL when you edit it.
+
+**Creating a watch, not just rechecking one, goes through the same key.**
+`POST /api/v1/watch` takes the complete field set — selectors, schedule,
+processor config, all of it — unlike the Import page, which only carries a
+handful of fields per method. `.\contrib\maku.ps1 watch apply -File plan.json`
+wraps this: it validates the plan first, POSTs it, forces a real check, and
+waits for that check to land before claiming anything worked. See
+[`.claude/skills/watch-from-url/USAGE.md`](../../.claude/skills/watch-from-url/USAGE.md)
+for generating the plan itself.
 
 Worth driving from a Windows scheduled task when the update time is *known* — a
 rate published at a fixed hour, a drop that goes live at midnight — rather than

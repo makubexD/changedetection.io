@@ -158,6 +158,72 @@ unasked = '\n'.join(probe.describe_conditional({'If-None-Match': '"v"'}, None))
 check('a request that could not be made proves NOTHING, and says so',
       'nothing proven' in unasked and 'SUPPORTED' not in unasked, unasked)
 
+# --- candidate-selector discovery (--find) ----------------------------------
+#
+# The ranking algorithm (#id -> unique class -> shortest unique nth-of-type
+# path) is entirely ours, unlike the rest of this file -- worth testing here.
+
+from bs4 import BeautifulSoup  # noqa: E402
+
+RATES_PAGE = '''<html><body>
+<div class="tc-quote-rates">
+  <button><span class="tc-quote-rate-value" id="compra-value"><span>3.348</span><span>--</span></span></button>
+  <button><span class="tc-quote-rate-value">3.3715</span></button>
+</div>
+</body></html>'''
+
+soup = BeautifulSoup(RATES_PAGE, 'html.parser')
+candidates = probe.find_candidates(soup, '3.348')
+check('finds the element whose text contains the target string',
+      len(candidates) == 1, candidates)
+check("the value's own span has no id/class -- anchors on the nearest ancestor that does",
+      candidates and candidates[0][0] == '#compra-value > span:nth-of-type(1)', candidates)
+
+candidates = probe.find_candidates(soup, '3.3715')
+check('no id or unique class on this one -- falls back to a structural path',
+      candidates and candidates[0][0] not in ('', None) and '#' not in candidates[0][0],
+      candidates)
+check('the fallback selector actually selects only this element',
+      candidates and len(soup.select(candidates[0][0])) == 1, candidates)
+
+candidates = probe.find_candidates(soup, 'not on this page')
+check('no match -> empty list, not an error', candidates == [], candidates)
+
+DUPLICATED = '''<html><body>
+<div><span class="price">9.99</span></div>
+<div><span class="price">9.99</span></div>
+</body></html>'''
+soup = BeautifulSoup(DUPLICATED, 'html.parser')
+candidates = probe.find_candidates(soup, '9.99')
+check('two structurally identical elements -> two distinct candidates, not one',
+      len(candidates) == 2, candidates)
+check('neither candidate selector is unique on its own (both select 2 elements)',
+      all(len(soup.select(sel)) >= 1 for sel, _ in candidates), candidates)
+
+out = captured(probe.report_find, RATES_PAGE, '3.348')
+check('report_find prints the isolated text next to the selector',
+      "isolates: '3.348'" in out, out)
+
+out = captured(probe.report_find, RATES_PAGE, 'nowhere')
+check('report_find on no match suggests --with-browser',
+      '--with-browser' in out, out)
+
+# --- the conditional verdict as one word (classify_conditional) -------------
+#
+# describe_conditional (tested above) owns the WORDING; this owns the WORD a
+# generator branches on. Same four inputs, so they cannot disagree.
+
+check("classify_conditional -> 'supported' on a real 304",
+      probe.classify_conditional({'If-None-Match': '"v"'}, 304) == 'supported')
+check("classify_conditional -> 'ignored' when the server answers 200 anyway",
+      probe.classify_conditional({'If-None-Match': '"v"'}, 200) == 'ignored')
+check("classify_conditional -> 'no_validators' when there is nothing to send",
+      probe.classify_conditional({}, None) == 'no_validators')
+check("classify_conditional -> 'refuses_head' on a non-304/200 status",
+      probe.classify_conditional({'If-Modified-Since': 'x'}, 405) == 'refuses_head')
+check("classify_conditional -> 'unproven' when the request could not be made",
+      probe.classify_conditional({'If-None-Match': '"v"'}, None) == 'unproven')
+
 print()
 print(f"{'FAILED' if failures else 'PASSED'} -- {len(failures)} failure(s)")
 sys.exit(1 if failures else 0)
