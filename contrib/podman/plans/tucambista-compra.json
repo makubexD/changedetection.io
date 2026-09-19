@@ -1,0 +1,26 @@
+{
+  "url": "https://tucambista.pe",
+  "title": "TuCambista - Compra (buy) rate",
+  "include_filters": [
+    ".tc-quote-rates > button:nth-of-type(1) > span:nth-of-type(2) > span:nth-of-type(1)"
+  ],
+  "time_between_check_use_default": false,
+  "time_between_check": {
+    "weeks": null,
+    "days": null,
+    "hours": 1,
+    "minutes": null,
+    "seconds": null
+  },
+  "time_schedule_limit": {
+    "enabled": true,
+    "monday":    { "enabled": true, "start_time": "08:00", "duration": { "hours": "10", "minutes": "0" } },
+    "tuesday":   { "enabled": true, "start_time": "08:00", "duration": { "hours": "10", "minutes": "0" } },
+    "wednesday": { "enabled": true, "start_time": "08:00", "duration": { "hours": "10", "minutes": "0" } },
+    "thursday":  { "enabled": true, "start_time": "08:00", "duration": { "hours": "10", "minutes": "0" } },
+    "friday":    { "enabled": true, "start_time": "08:00", "duration": { "hours": "10", "minutes": "0" } },
+    "saturday":  { "enabled": false, "start_time": "08:00", "duration": { "hours": "0", "minutes": "0" } },
+    "sunday":    { "enabled": false, "start_time": "08:00", "duration": { "hours": "0", "minutes": "0" } },
+    "timezone": "America/Lima"
+  }
+}
