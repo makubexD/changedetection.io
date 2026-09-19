@@ -208,6 +208,47 @@ out = captured(probe.report_find, RATES_PAGE, 'nowhere')
 check('report_find on no match suggests --with-browser',
       '--with-browser' in out, out)
 
+# --- a Tailwind-style class breaks a naive selector: FOUND LIVE on tucambista.pe --
+#
+# 'mt-0.5' is a legal HTML class token but not a legal CSS class SELECTOR: the
+# '.' inside it starts what soupsieve reads as a second class, and raises
+# SelectorSyntaxError. This is not a hypothetical -- it crashed find_candidates
+# the first time this ran against the real page.
+
+TAILWIND_PAGE = '''<html><body>
+<div class="tc-quote-rate-value mt-0.5"><span>3.348</span></div>
+</body></html>'''
+soup = BeautifulSoup(TAILWIND_PAGE, 'html.parser')
+candidates = probe.find_candidates(soup, '3.348')
+check("a class containing '.' does not crash the search", len(candidates) == 1, candidates)
+check("the escaped class selector is used, and it actually selects the element",
+      candidates and candidates[0][0].startswith('.tc-quote-rate-value') and
+      len(soup.select(candidates[0][0])) == 1, candidates)
+
+check("escape_css_ident escapes the dot in a Tailwind-style class",
+      probe.escape_css_ident('mt-0.5') == r'mt-0\.5', probe.escape_css_ident('mt-0.5'))
+check("select_count returns 0 on an unescaped, unparseable selector instead of raising",
+      probe.select_count(soup, '.mt-0.5') == 0)
+
+# --- script/style text is never a candidate: FOUND LIVE on tucambista.pe -----
+#
+# A Next.js hydration payload embeds the same number inside a <script> tag,
+# and without this exclusion it out-competes the real visible element for
+# attention -- worth a real page's worth of noise as the fixture, not a
+# one-line stub, since the failure was specifically about SIZE and RANKING.
+
+HYDRATION_NOISE = '''<html><body>
+<div class="tc-quote-rates"><button><span class="tc-quote-rate-value"><span>3.348</span></span></button></div>
+<script>self.__next_f.push([1,"{\\"buyExchangeRate\\":3.348,\\"sellExchangeRate\\":3.375}"])</script>
+<style>.price-3\\.348 { color: red; }</style>
+</body></html>'''
+soup = BeautifulSoup(HYDRATION_NOISE, 'html.parser')
+candidates = probe.find_candidates(soup, '3.348')
+check('script/style text never becomes a candidate, however much of it there is',
+      all('__next_f' not in text and 'push' not in text for _, text in candidates), candidates)
+check('the real visible element is still found',
+      any(text == '3.348' for _, text in candidates), candidates)
+
 # --- the conditional verdict as one word (classify_conditional) -------------
 #
 # describe_conditional (tested above) owns the WORDING; this owns the WORD a

@@ -233,11 +233,40 @@ def ancestor_chain(el):
     return list(reversed(parts))
 
 
+_CSS_ESCAPE_RE = re.compile(r'([^a-zA-Z0-9_-])')
+
+
+def escape_css_ident(value):
+    """Escape a class or id for literal use in a CSS selector.
+
+    FOUND LIVE, on tucambista.pe: Tailwind emits classes like 'mt-0.5', which
+    is a legal HTML class token but not a legal CSS class SELECTOR -- the '.'
+    inside it reads as the start of a second class, and soupsieve raises
+    SelectorSyntaxError. Backslash-escaping every character outside
+    [A-Za-z0-9_-] is what CSS itself defines for this. This matters beyond our
+    own ranking: an unescaped value written into include_filters would fail
+    the same way in the app's own html_tools.include_filters at check time.
+    """
+    return _CSS_ESCAPE_RE.sub(r'\\\1', value)
+
+
+def select_count(soup, selector):
+    """len(soup.select(selector)), or 0 if the selector cannot be parsed.
+
+    A malformed selector should not crash the whole candidate search -- it
+    just means THIS candidate does not work, same as matching zero elements.
+    """
+    try:
+        return len(soup.select(selector))
+    except Exception:
+        return 0
+
+
 def unique_class_selector(el, soup):
     """A single class that selects only this element, or None."""
     for cls in el.get('class') or []:
-        selector = f'.{cls}'
-        if len(soup.select(selector)) == 1:
+        selector = f'.{escape_css_ident(cls)}'
+        if select_count(soup, selector) == 1:
             return selector
     return None
 
@@ -252,7 +281,7 @@ def shortest_unique_path(el, soup):
     chain = ancestor_chain(el)
     for i in range(len(chain) - 1, -1, -1):
         candidate = ' > '.join(chain[i:])
-        if len(soup.select(candidate)) == 1:
+        if select_count(soup, candidate) == 1:
             return candidate
     return ' > '.join(chain)
 
@@ -260,7 +289,7 @@ def shortest_unique_path(el, soup):
 def anchor_selector(el, soup):
     """An id or a page-unique class on THIS element, or None."""
     if el.get('id'):
-        return f"#{el['id']}"
+        return f"#{escape_css_ident(el['id'])}"
     return unique_class_selector(el, soup)
 
 
@@ -296,9 +325,12 @@ def build_selector(el, soup):
     anchor, chain = find_anchor(el, soup)
     if anchor:
         candidate = f"{anchor} > " + ' > '.join(chain)
-        if len(soup.select(candidate)) == 1:
+        if select_count(soup, candidate) == 1:
             return candidate
     return shortest_unique_path(el, soup)
+
+
+_NON_CONTENT_TAGS = ('script', 'style')
 
 
 def find_candidates(soup, text):
@@ -307,11 +339,18 @@ def find_candidates(soup, text):
     Walks up from the TEXT NODE to its immediate parent tag, not to whichever
     ancestor first contains the string -- the parent is the tightest wrapper, and
     a selector on it is the one least likely to also catch a sibling.
+
+    FOUND LIVE, on tucambista.pe: a modern server-rendered page embeds its own
+    hydration data as JSON inside <script> tags, often megabytes of it, and a
+    naive text search matches the target number inside that blob just as
+    readily as inside the visible element -- on this page, several 'candidates'
+    were entire inline <script> bodies. None of that is ever a usable filter
+    target, so script/style text is excluded before ranking, not after.
     """
     candidates, seen = [], set()
     for node in soup.find_all(string=lambda s: s and text in s):
         el = node.parent
-        if not getattr(el, 'name', None):
+        if not getattr(el, 'name', None) or el.name in _NON_CONTENT_TAGS:
             continue
         selector = build_selector(el, soup)
         if selector in seen:
