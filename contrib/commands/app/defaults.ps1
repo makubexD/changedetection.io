@@ -36,7 +36,17 @@ Import-Module (Join-Path $PSScriptRoot '..\..\lib\Podman.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\..\lib\Console.psm1') -Force
 Use-NativeExitCodes
 
-Test-PodmanReady
+# UNLIKE 'site probe', there is no host-only fallback for this one -- it reads
+# the LIVE datastore inside the container, and there is no substitute for
+# that anywhere outside it. Said plainly here so a machine with no podman
+# reads this as a real limitation, not a bug that 'site probe' avoided.
+try {
+    Test-PodmanReady
+} catch {
+    throw (New-Refusal ("$($_.Exception.Message)`nUnlike 'site probe', 'app defaults' has no host-only path -- " +
+                        "it reads the live instance's own datastore, which only exists inside the container.") `
+                       "run this on a machine with the stack up, or skip it and flag tags/globals as unchecked in the plan")
+}
 $container = (Get-PodmanNames).App
 
 # Same check as 'site probe' -- the script arrives on the read-only mount that

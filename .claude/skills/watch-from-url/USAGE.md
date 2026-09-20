@@ -4,13 +4,78 @@ Read this before your first run. It has real prompts, what actually comes back,
 and what to do when the skill asks you something. `SKILL.md` is the procedure
 the skill follows; `references/decisions.md` is why each rule in it exists.
 
-> **A note on the examples below.** The output shapes here are grounded in facts
-> this fork's own docs have already established by running against the real
-> sites — the tucambista prices, the `MobileApplication` trap, the Amazon
-> escalation ladder — all sourced from `contrib/podman/SITE-NOTES.md`. They are
-> shown here as what a correct run *produces*, not as a transcript captured in
-> this environment; running them for real depends on your own stack, network
-> path and API key.
+> **A note on the examples below.** The "Worked examples" section's output
+> shapes are grounded in facts this fork's own docs have already established
+> by running against the real sites — the tucambista prices, the
+> `MobileApplication` trap, the Amazon escalation ladder — sourced from
+> `contrib/podman/SITE-NOTES.md`. They are shown as what a correct run
+> *produces*, not as a transcript. The "Running this on a machine with no
+> podman" section immediately below IS a real transcript — genuinely run,
+> including the bugs it found and the fixes that followed.
+
+## Running this on a machine with no podman
+
+This actually happened: generating a real plan on a machine with neither
+podman nor docker installed, then applying it on a separate machine that had
+both.
+
+`site probe` auto-detects — you run the exact same command either way:
+
+```powershell
+PS> .\contrib\maku.ps1 site probe -Url https://tucambista.pe -Selector '.tc-quote-rates > button:nth-of-type(1) > span:nth-of-type(2) > span:nth-of-type(1)'
+No podman reachable -- running the degraded, host-only path (see USAGE.md).
+Status     200 in 1.1s, 159,781 bytes   (plain HTTP (no browser))
+--host-only: no application import, so Restock & Price detection is skipped
+entirely, and --selector only understands plain CSS. Confirm both on a machine
+with the container before relying on this. See USAGE.md.
+
+Restock & Price mode: skipped (--host-only, no app import)
+  published offers in 5 ld+json block(s):
+    offer on MobileApplication      price 3.375 PEN
+    offer on SoftwareApplication    price 3.375 PEN
+    (one distinct price -- every watch on this URL reports it)
+
+Your selector: .tc-quote-rates > button:nth-of-type(1) > span:nth-of-type(2) > span:nth-of-type(1)
+  matched (host-only, via BeautifulSoup -- not yet verified against the app's
+  own matcher), text: '3.348'
+  extracted_number -> 3348
+  WARNING: the '.' was read as a THOUSANDS separator, not a decimal point.
+    ...
+Cheap polling (conditional requests):
+  the server sends neither ETag nor Last-Modified.
+  -> every check downloads the whole page. Keep the interval long...
+```
+
+That evidence — the offer walk still catching the `MobileApplication` trap,
+the selector verified (as CSS, and said so), the conditional verdict —
+produced `contrib/podman/plans/tucambista-compra.json` and its
+`.NOTES.md`, both committed and pushed. On the machine with podman:
+
+```powershell
+PS> git pull
+PS> .\contrib\maku.ps1 app defaults -Json          # tags, globals -- no host-only path for this one
+PS> .\contrib\maku.ps1 site probe -Url https://tucambista.pe -Selector '...'   # full-fidelity, through the app's own matcher
+PS> .\contrib\maku.ps1 watch apply -File contrib\podman\plans\tucambista-compra.json -ApiKey ...
+
+-- checking the plan
+OK    plan       no quiet-failure fields found (...)
+-- creating the watch
+OK    watch      179a5cad-6610-4216-bbee-711caafcb378
+-- checking it for real
+OK    checked    http://localhost:5000/edit/179a5cad-6610-4216-bbee-711caafcb378
+  captured: 3.348
+```
+
+Every fact host-only mode reported turned out correct once verified through
+the real app. That will not always be true — it is why the NOTES.md file
+exists — but it is the point of the mode: real evidence now, explicit gaps
+named, nothing guessed.
+
+**One thing this run itself found**: the first version of `--find` crashed on
+this exact page (a Tailwind class like `mt-0.5` is not valid inside a CSS
+selector) and, once fixed, returned noise from inline `<script>` JSON blobs a
+Next.js page embeds. Both are fixed and covered by regression tests now — the
+point of running against a real site instead of only fixtures.
 
 ## Before you start
 

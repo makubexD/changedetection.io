@@ -43,6 +43,12 @@
     Print one JSON report instead of prose. Same underlying facts as the default
     report; for a caller that wants to branch on them rather than parse text.
 
+.PARAMETER HostOnly
+    Force the degraded, no-container path even if podman IS available -- for
+    comparing the two, or rehearsing what a machine with neither podman nor
+    docker would see. Auto-detected otherwise; you should not normally need
+    this switch.
+
 .EXAMPLE
     .\contrib\maku.ps1 site probe -Url https://tucambista.pe
 .EXAMPLE
@@ -56,6 +62,7 @@ param(
     [string]$Find,
     [switch]$WithBrowser,
     [switch]$Json,
+    [switch]$HostOnly,
     [int]$TimeoutSec = 30
 )
 $ErrorActionPreference = 'Stop'
@@ -64,7 +71,51 @@ Import-Module (Join-Path $PSScriptRoot '..\..\lib\Console.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\..\lib\Repo.psm1') -Force
 Use-NativeExitCodes
 
-Test-PodmanReady
+# Runs probe.py directly on the host -- no podman exec, no container. This is
+# what makes 'watch-from-url' work on a machine with neither podman nor
+# docker at all: the degraded evidence this collects (everything except
+# Restock & Price detection, and CSS-only selector checking) is still real,
+# just not the last word -- see USAGE.md's host-only section for what to
+# re-verify on a machine that DOES have the container.
+function Invoke-ProbeHostOnly([string]$Url, [string]$Selector, [string]$Find,
+                               [switch]$Json, [switch]$WithBrowser, [int]$TimeoutSec) {
+    if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+        throw (New-Refusal "No podman, and no 'python' on PATH either -- there is no way to run this here." `
+                           "install podman (contrib/fork/SETUP.md step 1), or install Python 3 to get the degraded host-only path")
+    }
+    if ($WithBrowser) {
+        Write-Host "No container available -- -WithBrowser is ignored; this can only fetch over plain HTTP." -ForegroundColor Yellow
+    }
+    $probePath = Join-Path $PSScriptRoot '..\..\runtime\probe.py'
+    Write-Host "No podman reachable -- running the degraded, host-only path (see USAGE.md)." -ForegroundColor Yellow
+    $probeArgs = @($probePath, '--url', $Url, '--timeout', "$TimeoutSec", '--host-only')
+    if ($Selector) { $probeArgs += @('--selector', $Selector) }
+    if ($Find)     { $probeArgs += @('--find', $Find) }
+    if ($Json)     { $probeArgs += '--json' }
+    & python @probeArgs
+}
+
+# Auto-detected, not asked about: a machine with no podman/docker should get
+# the degraded path automatically, not a refusal to work around every time.
+# Test-PodmanReady's own refusal already distinguishes "not installed" from
+# "installed but not running" -- both land here the same way, because both
+# mean this run cannot reach a container.
+$podmanReady = $HostOnly -eq $false
+if ($podmanReady) {
+    try { Test-PodmanReady } catch { $podmanReady = $false }
+}
+
+if (-not $podmanReady) {
+    # Named, not positional: PowerShell excludes [switch] parameters from
+    # positional numbering entirely, so a positional call here silently
+    # shifted every argument after the first switch -- $Json's value landed
+    # in $TimeoutSec's slot and broke on the int conversion. Cost an hour to
+    # find; named binding makes the mistake impossible to make again.
+    Invoke-ProbeHostOnly -Url $Url -Selector $Selector -Find $Find `
+                          -Json:$Json -WithBrowser:$WithBrowser -TimeoutSec $TimeoutSec
+    exit $LASTEXITCODE
+}
+
 $container = (Get-PodmanNames).App
 
 # The script is not in the image -- it arrives on the read-only mount that

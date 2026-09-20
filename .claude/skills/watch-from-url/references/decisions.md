@@ -79,3 +79,55 @@ has a model wired up.
 Both are empty on a watch's first-ever notification (no previous snapshot yet)
 — any arithmetic in a generated template must guard for that, exactly as the
 canonical template in `contrib/fork/SETUP.md` §6 does.
+
+## Host-only mode: what it is, and exactly where its authority ends
+
+`contrib/runtime/probe.py`'s docstring states a rule this whole skill is built
+on: an answer about the app's own extractor is never approximated, because an
+approximation that disagrees with the real thing is worse than no answer.
+`--host-only` (`contrib/commands/site/probe.ps1` auto-detects and switches to
+it when podman is unreachable) holds that rule by *narrowing what it answers*,
+never by *guessing* the parts it cannot.
+
+**What stays identical in both modes**, because none of it needs the app
+package, only `requests`/`bs4`/stdlib — proven live against tucambista.pe on a
+machine with neither podman nor docker installed:
+- the fetch itself (`fetch()`, plain HTTP only — no browser fetcher exists
+  outside a container, `_fetch_with_browser` needs `PLAYWRIGHT_DRIVER_URL`)
+- the ld+json offer walk (`collect_ldjson_offers`) — pure `re`/`json`, and this
+  is the one that catches the `MobileApplication`-offer trap, so host-only
+  mode can still make the Restock-vs-Text call correctly even though it
+  cannot run Restock's own extractor
+- selector candidate ranking (`find_candidates`) — pure BeautifulSoup
+- the conditional-request verdict (`compute_conditional`,
+  `contrib/runtime/maku_conditional_fetch.py`) — this module is fork-authored
+  and stdlib-only, deliberately not part of `changedetectionio`, so it was
+  never actually container-bound to begin with
+
+**What is skipped outright, with no substitute** — approximating either would
+be exactly the "second opinion that can drift from the first" the file's own
+docstring forbids:
+- `get_itemprop_availability` (the Restock & Price verdict) — reads
+  ld+json/microdata/OpenGraph by rules only that function knows
+- anything the live instance's datastore alone can answer — tags, their
+  `url_match_pattern`, global `fetch_backend`/`time_between_check`/filter
+  lists (`contrib/runtime/instance.py`, `app defaults`)
+- actually creating or checking a watch (`POST /api/v1/watch`, the forced
+  recheck) — there is no instance to create it on
+
+**What is narrowed, not skipped** — real, but a lower-fidelity substitute,
+always labelled `host_only: true` in its own output:
+- `--selector` verification (`host_only_css_match`) uses plain
+  `BeautifulSoup.select`, the SAME engine `find_candidates` already uses, not
+  a second implementation — but only for CSS. `xpath:`/`xpath1:`/`json:`/
+  `jq:`/`jqraw:` selectors need `elementpath`/`jsonpath_ng`/`jq`, the same
+  dependency wall that makes importing `changedetectionio` itself impractical
+  on a bare host, so those are refused rather than approximated
+  (`is_app_only_selector`)
+
+**The rule this enables**: a plan built with any host-only evidence is
+provisional, not wrong — every fact in it was checked against the real, live
+page, just not through every one of the app's own code paths. The
+`<plan>.NOTES.md` file is what turns "provisional" into "actionable": it names
+exactly which facts need re-confirming, and with which command, on a machine
+that has the container.

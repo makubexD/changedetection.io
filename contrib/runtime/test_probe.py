@@ -265,6 +265,55 @@ check("classify_conditional -> 'refuses_head' on a non-304/200 status",
 check("classify_conditional -> 'unproven' when the request could not be made",
       probe.classify_conditional({'If-None-Match': '"v"'}, None) == 'unproven')
 
+# --- --host-only: the fallback path for a machine with no podman ------------
+#
+# This is what let the skill run on a machine with neither podman nor docker
+# and still produce a real, verified selector for tucambista.pe -- these tests
+# pin the boundary of what host-only mode can and cannot honestly claim.
+
+check("a plain CSS selector is NOT app-only",
+      probe.is_app_only_selector('.tc-quote-rate-value') is False)
+for prefix, example in [('/', '/html/body'), ('xpath:', 'xpath://div'),
+                         ('xpath1:', 'xpath1://div'), ('json:', 'json:$.price'),
+                         ('jq:', 'jq:.price'), ('jqraw:', 'jqraw:.price')]:
+    check(f"a {prefix!r} selector IS app-only -- host-only mode cannot verify it",
+          probe.is_app_only_selector(example) is True, example)
+
+result = probe.host_only_css_match(RATES_PAGE, 'json:$.price')
+check('host_only_css_match returns None for an app-only selector, not a wrong answer',
+      result is None, result)
+
+result = probe.host_only_css_match(RATES_PAGE, '#compra-value')
+check('host_only_css_match matches a real CSS selector and reports the text',
+      result == {'matched': True, 'text': '3.348--'}, result)
+
+result = probe.host_only_css_match(RATES_PAGE, '.nothing-on-this-page')
+check('host_only_css_match reports a clean zero-match, not an exception',
+      result == {'matched': False}, result)
+
+out = captured(probe.report_selector, RATES_PAGE, 'json:$.price', True)
+check('report_selector in host-only mode names the app-only syntax it cannot check',
+      'xpath/JSONPath/jq' in out, out)
+
+out = captured(probe.report_selector, RATES_PAGE, '#compra-value', True)
+check("report_selector in host-only mode labels the match as host-only, not authoritative",
+      "host-only" in out and "3.348" in out, out)
+
+result = probe.finish_selector_result('#x', False, None, True)
+check('finish_selector_result on no-match carries no text/extracted_number keys to fill in',
+      result == {'selector': '#x', 'matched': False, 'host_only': True}, result)
+
+result = probe.finish_selector_result('#x', True, '3.348', True)
+check('finish_selector_result on a match still runs the thousands-separator check',
+      result.get('extracted_number') == '3348' and result.get('thousands_separator_misread') is True,
+      result)
+
+result = probe.collect_restock(RATES_PAGE, host_only=True)
+check("collect_restock in host-only mode returns a skip note, never a guessed verdict",
+      'skipped' in result, result)
+check("the skip note says WHY, not just that it was skipped",
+      'container' in result['skipped'] or 'app' in result['skipped'], result)
+
 print()
 print(f"{'FAILED' if failures else 'PASSED'} -- {len(failures)} failure(s)")
 sys.exit(1 if failures else 0)

@@ -1,8 +1,12 @@
 # tucambista-compra.json — how it was generated, and what to check before applying
 
-Generated on a machine with **no podman/docker**, following the `watch-from-url`
-procedure by hand where the container-dependent steps couldn't run. The plan is
-portable: hand it to a machine that has the stack running and apply it there.
+Generated on a machine with **no podman/docker**, using `site probe`'s
+`--host-only` mode (now auto-detected — see
+`.claude/skills/watch-from-url/references/decisions.md#host-only-mode`). At
+the time this plan was written, that mode did not exist yet and this evidence
+was gathered by hand; `probe.py --host-only` now does the same thing as a
+documented, tested command. The plan is portable: hand it to a machine that
+has the stack running and apply it there.
 
 ## What was actually verified, live, on 2026-09-19
 

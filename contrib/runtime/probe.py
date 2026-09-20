@@ -375,14 +375,47 @@ def report_find(content, text):
         print(f'    isolates: {matched_text!r}')
 
 
-def report_selector(content, selector):
+_APP_ONLY_SELECTOR_PREFIXES = ('/', 'xpath:', 'xpath1:', 'json:', 'jq:', 'jqraw:')
+
+
+def is_app_only_selector(selector):
+    """True for xpath/JSONPath/jq syntax -- these need elementpath/jsonpath_ng/jq,
+    the same dependency wall that makes importing the app itself impractical on
+    a bare host. Plain CSS is the only syntax host-only mode can verify.
+    """
+    return selector.startswith(_APP_ONLY_SELECTOR_PREFIXES)
+
+
+def host_only_css_match(content, selector):
+    """CSS-only stand-in for html_tools.include_filters, for host-only mode.
+
+    Deliberately the SAME engine find_candidates already uses
+    (BeautifulSoup.select) -- not a second implementation, just a narrower one:
+    only the first match, only plain CSS. Returns None for xpath/JSONPath/jq,
+    which this cannot verify at all -- silence there is more honest than a
+    wrong answer dressed up as a real one.
+    """
+    if is_app_only_selector(selector):
+        return None
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(content, 'html.parser')
+    if select_count(soup, selector) == 0:
+        return {'matched': False}
+    el = soup.select(selector)[0]
+    return {'matched': True, 'text': el.get_text(strip=True)}
+
+
+def report_selector(content, selector, host_only=False):
     print()
     if not selector:
         print('No -Selector given, so nothing to test. Pass one to see exactly what a')
         print('watch\'s "CSS/JSONPath/JQ/XPath Filter" would keep.')
         return
-    from changedetectionio import html_tools   # proved importable at start-up
     print(f'Your selector: {selector}')
+    if host_only:
+        report_selector_host_only(content, selector)
+        return
+    from changedetectionio import html_tools   # proved importable at start-up
     try:
         html_block = html_tools.include_filters(include_filters=selector, html_content=content)
     except Exception as e:
@@ -397,6 +430,22 @@ def report_selector(content, selector):
     text = html_tools.html_to_text(html_block).strip()
     print(f'  matched, text: {text!r}')
     report_extracted_number(text)
+
+
+def report_selector_host_only(content, selector):
+    """The degraded --host-only path: CSS only, and said plainly."""
+    if is_app_only_selector(selector):
+        print('  host-only mode can only test plain CSS -- this looks like xpath/JSONPath/jq.')
+        print('  Verify it on a machine with the container: site probe -Selector ...')
+        return
+    result = host_only_css_match(content, selector)
+    if not result['matched']:
+        print('  matched 0 elements (checked with BeautifulSoup, not the app\'s own matcher).')
+        print('  If the page builds this element in JavaScript, retry with --with-browser.')
+        return
+    print(f"  matched (host-only, via BeautifulSoup -- not yet verified against the app's")
+    print(f"  own matcher), text: {result['text']!r}")
+    report_extracted_number(result['text'])
 
 
 def price_parser_available():
@@ -539,19 +588,20 @@ def _conditional_head(url, timeout, validators):
         return None
 
 
-def build_json_report(url, timeout, with_browser, content, status, seconds, fetcher, headers, selector, find):
+def build_json_report(url, timeout, with_browser, content, status, seconds, fetcher, headers,
+                       selector, find, host_only=False):
     """The same facts the text report prints, as one dict -- for a caller that
     wants to branch on them instead of parsing prose. Calls the same collectors
     the print functions call, so the two renderings cannot drift apart.
     """
     report = {'url': url, 'status': status, 'seconds': round(seconds, 2),
-              'bytes': len(content), 'fetcher': fetcher}
-    report['restock'] = collect_restock(content)
+              'bytes': len(content), 'fetcher': fetcher, 'host_only': host_only}
+    report['restock'] = collect_restock(content, host_only)
     offers, block_count = collect_ldjson_offers(content)
     report['ldjson_offers'] = [{'enclosing_type': k, 'price': p, 'currency': c} for k, p, c in offers]
     report['ldjson_block_count'] = block_count
     if selector:
-        report['selector'] = collect_selector_match(content, selector)
+        report['selector'] = collect_selector_match(content, selector, host_only)
     if find:
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(content, 'html.parser')
@@ -560,8 +610,17 @@ def build_json_report(url, timeout, with_browser, content, status, seconds, fetc
     return report
 
 
-def collect_restock(content):
-    """The Restock & Price verdict as data: a price dict, None, or an error string."""
+def collect_restock(content, host_only=False):
+    """The Restock & Price verdict as data: a price dict, None, a skip note, or an error string.
+
+    No CSS-only stand-in exists for this one, unlike the selector match --
+    the extractor reads ld+json/microdata/OpenGraph across the whole page with
+    rules only get_itemprop_availability itself knows; approximating it would
+    be exactly the second opinion this tool exists to avoid. Host-only mode
+    skips it outright rather than guess.
+    """
+    if host_only:
+        return {'skipped': 'no container available (--host-only) -- needs the app\'s own extractor'}
     from changedetectionio.processors.restock_diff.processor import get_itemprop_availability
     try:
         restock = get_itemprop_availability(content)
@@ -573,8 +632,13 @@ def collect_restock(content):
             'availability': restock.get('availability')}
 
 
-def collect_selector_match(content, selector):
+def collect_selector_match(content, selector, host_only=False):
     """What --selector matched, as data: text, extracted number, the misread flag."""
+    if host_only:
+        result = host_only_css_match(content, selector)
+        if result is None:
+            return {'selector': selector, 'skipped': 'xpath/JSONPath/jq need the app -- host-only supports CSS only'}
+        return finish_selector_result(selector, result.get('matched'), result.get('text'), True)
     from changedetectionio import html_tools
     try:
         html_block = html_tools.include_filters(include_filters=selector, html_content=content)
@@ -583,7 +647,17 @@ def collect_selector_match(content, selector):
     if not html_block.strip():
         return {'selector': selector, 'matched': False}
     text = html_tools.html_to_text(html_block).strip()
-    result = {'selector': selector, 'matched': True, 'text': text}
+    return finish_selector_result(selector, True, text, False)
+
+
+def finish_selector_result(selector, matched, text, host_only):
+    """Shared tail of collect_selector_match's two branches: add the extracted
+    number and the thousands-separator flag once a match's text is in hand.
+    """
+    result = {'selector': selector, 'matched': matched, 'host_only': host_only}
+    if not matched or text is None:
+        return result
+    result['text'] = text
     if price_parser_available():
         amount = collect_extracted_number(text)
         result['extracted_number'] = str(amount) if amount is not None else None
@@ -610,9 +684,14 @@ def main():
     parser.add_argument('--timeout', type=int, default=30)
     parser.add_argument('--with-browser', action='store_true')
     parser.add_argument('--json', action='store_true', help='print one JSON report instead of prose')
+    parser.add_argument('--host-only', action='store_true',
+                         help="run without the application import (e.g. no podman/container available). "
+                              "Skips Restock & Price detection entirely and restricts --selector to plain "
+                              "CSS -- see USAGE.md's 'Running this on a machine with no podman' section.")
     args = parser.parse_args()
 
-    ensure_app_importable()
+    if not args.host_only:
+        ensure_app_importable()
 
     try:
         content, status, seconds, fetcher, headers = fetch(args.url, args.timeout, args.with_browser)
@@ -626,17 +705,24 @@ def main():
 
     if args.json:
         report = build_json_report(args.url, args.timeout, args.with_browser, content, status,
-                                    seconds, fetcher, headers, args.selector, args.find)
+                                    seconds, fetcher, headers, args.selector, args.find, args.host_only)
         print(json.dumps(report, indent=2, default=str))
         return 0
 
     print(f'Status     {status} in {seconds:.1f}s, {len(content):,} bytes   ({fetcher})')
+    if args.host_only:
+        print("--host-only: no application import, so Restock & Price detection is skipped")
+        print("entirely, and --selector only understands plain CSS. Confirm both on a machine")
+        print("with the container before relying on this. See USAGE.md.")
     print()
-    report_structured_prices(content)
+    if args.host_only:
+        print("Restock & Price mode: skipped (--host-only, no app import)")
+    else:
+        report_structured_prices(content)
     report_ldjson_offers(content)
     if args.find:
         report_find(content, args.find)
-    report_selector(content, args.selector)
+    report_selector(content, args.selector, args.host_only)
     report_conditional_support(args.url, args.timeout, headers)
     return 0
 
