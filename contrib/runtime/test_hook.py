@@ -57,7 +57,7 @@ def check(label, condition, detail=''):
             print(f"     {detail}")
 
 
-root = tempfile.mkdtemp(prefix='gid-hook-test-')
+root = tempfile.mkdtemp(prefix='import-hook-test-')
 try:
     pkg = os.path.join(root, 'changedetectionio')
     fetchers = os.path.join(pkg, 'content_fetchers')

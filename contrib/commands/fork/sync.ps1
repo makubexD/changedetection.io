@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     In order:
-        1. upstream/*      fetched (the remote is added, fetch-only, if absent)
+        1. upstream/master and tags fetched (the remote is added, fetch-only, if absent)
         2. master          fast-forwarded to upstream/master, then pushed
         3. release branch  master merged in, then pushed
 
@@ -133,7 +133,11 @@ try {
     }
     Assert-CleanTree
 
-    & git fetch upstream --tags --prune
+    # Only master, because it is the only upstream branch this sync reads.
+    # Fetching every branch breaks on Windows whenever upstream has two names
+    # that differ only by case (it has both `llm` and `LLM/...`): Git can't
+    # store both refs on a case-insensitive filesystem.
+    & git fetch upstream --tags --prune '+refs/heads/master:refs/remotes/upstream/master'
     if ($LASTEXITCODE -ne 0) { throw 'git fetch upstream failed' }
 
     # Checked before master is touched, so the error names the real problem
