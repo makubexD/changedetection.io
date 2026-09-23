@@ -76,17 +76,19 @@ function Assert-UpstreamRemote {
 # is a better answer than a second run would be -- which is why this fork disables
 # those workflows rather than re-running them.
 #
-# --paginate IS NOT OPTIONAL. The endpoint returns 30 check runs per page and
-# upstream currently produces well over a hundred, so without it this gate reads a
-# third of the matrix and calls the whole thing green: a failure on page two would
-# sync silently. The count printed on success is the proof it read them all.
+# --paginate IS NOT OPTIONAL. The endpoint returns 30 check runs per page by
+# default; per_page=100 (its maximum) cuts that to one round trip today, but the
+# matrix can outgrow it, and without --paginate this gate would read only the
+# first page and call the whole thing green: a failure on page two would sync
+# silently. The count printed on success is the proof it read them all.
 function Assert-UpstreamCiGreen([string]$sha) {
     $short = $sha.Substring(0, 8)
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
         Write-Warn 'ci' "gh is not installed -- upstream CI was NOT checked for $short."
         return
     }
-    $runs = gh api --paginate "repos/dgtlmoon/changedetection.io/commits/$sha/check-runs" `
+    Write-Host "Reading upstream CI for $short..."
+    $runs = gh api --paginate "repos/dgtlmoon/changedetection.io/commits/$sha/check-runs?per_page=100" `
                 --jq '.check_runs[] | "\(.conclusion)"' 2>$null
     if ($LASTEXITCODE -ne 0) { throw "could not read upstream check runs for $sha" }
 
@@ -137,6 +139,7 @@ try {
     # Fetching every branch breaks on Windows whenever upstream has two names
     # that differ only by case (it has both `llm` and `LLM/...`): Git can't
     # store both refs on a case-insensitive filesystem.
+    Write-Host 'Fetching upstream master...'
     & git fetch upstream --tags --prune '+refs/heads/master:refs/remotes/upstream/master'
     if ($LASTEXITCODE -ne 0) { throw 'git fetch upstream failed' }
 
